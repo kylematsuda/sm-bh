@@ -4,9 +4,6 @@ import math
 # Model parameters:
 J = 1; U = 1.5 * J;
 
-# # Cutoff for small numbers
-# cutoff = 1E-10
-
 # Simulation parameters:
 # d = Number cutoff, chi = Entanglement cutoff,
 # L = Number of sites
@@ -26,31 +23,11 @@ class TensorGroup(object):
 		Gamma_lp1 = self.Gamma[l+1]
 		Gamma_l = self.Gamma[l]
 
-		# if (l != 0 and l != L-2):
-		# 	theta = np.tensordot(np.diag(Lambda[l,:]), Gamma_lp1[:,:,:], axes=(1,1))
-		# 	theta = np.tensordot(Gamma_l[:,:,:], theta, axes=(2,0))
-		# 	theta = np.tensordot(np.diag(Lambda[l-1,:]), theta, axes=(1,1))
-		# 	theta = np.tensordot(theta, np.diag(Lambda[l+1,:]), axes=(-1, 0))
-
-		# 	# Now indices are [a_(l-1), i_l, i_(l+1), a_(l+1)]
-		# 	# Swap them to [i_l, i_(l+1), a_(l-1), a_(l+1)] to avoid confusion
-		# 	theta = np.transpose(theta,(1,2,0,3))
-	
-		# # Structure of Gamma^(0) and Gamma^(L-1) are different...
-		# elif (l == 0):
-		# 	theta = np.tensordot(np.diag(Lambda[l,:]), Gamma_lp1[:,:,:], axes=(1,1))
-		# 	theta = np.tensordot(Gamma_l[:,:], theta, axes=(1,0))
-		# 	theta = np.tensordot(theta, np.diag(Lambda[l+1,:]), axes=(-1, 0))
-		# elif (l == L-2):
-		# 	theta = np.tensordot(np.diag(Lambda[l,:]), Gamma_lp1[:,:], axes=(1,1))
-		# 	theta = np.tensordot(Gamma_l[:,:,:], theta, axes=(-1,0))
-		# 	theta = np.tensordot(np.diag(Lambda[l-1,:]), theta, axes=(1,1))
-		# 	# Swap indices to be (i_l, i_l + 1, a_(l-1))
-		# 	theta = np.transpose(theta, (1,2,0))
-		# return theta
-
-
-		# Trying alternate def of Theta to reduce numerical errors
+		# Build the Theta tensor
+		# NOTE: this definition of Theta DOES NOT agree with the one in
+		# the Mishmash thesis. Using alternate def of Theta to reduce numerical errors.
+		# This definition of Theta does not include the Lambdas on the far left and right of the formula,
+		# since we want to eventually divide them off anyway.
 		if (l != 0 and l != L-2):
 			theta = np.tensordot(np.diag(Lambda[l,:]), Gamma_lp1[:,:,:], axes=(1,1))
 			theta = np.tensordot(Gamma_l[:,:,:], theta, axes=(2,0))
@@ -102,25 +79,13 @@ class TensorGroup(object):
 			# Find the new Gammas
 
 			# Gamma_l:
-			# First, reshape A
+			# Reshape A
 			A = np.reshape(A[:, 0:chi], (d, chi, chi))
-			# Next, "divide off" Lambda[l-1]
-			# (see http://inside.mines.edu/~lcarr/theses/mishmash_thesis_2008.pdf,
-			#	equation 3.40)
-			
-			# Trying alternative def of Theta:
-			# Gamma_l_new = np.tensordot(np.diag(OneOver(self.Lambda[l-1,:])), A, axes=(1,1))
-			# Gamma_l_new = np.transpose(Gamma_l_new, (1,0,2))
 			Gamma_l_new = A
 			self.Gamma[l] = Gamma_l_new
 
 			# Gamma_(l+1):
-			# Do the same thing (note that C has already been transposed)
 			C = np.reshape(C[:, 0:chi], (d, chi, chi))
-			
-			# Trying alternative def of Theta
-			# Gamma_lp1_new = np.tensordot(np.diag(OneOver(self.Lambda[l+1,:])), C, axes=(1,1))
-			# Gamma_lp1_new = np.transpose(Gamma_lp1_new, (1,0,2))
 			Gamma_lp1_new = C
 			self.Gamma[l+1] = Gamma_lp1_new
 
@@ -148,8 +113,6 @@ class TensorGroup(object):
 			# Gamma_(l+1):
 			# Treat the l = 1 case normally...
 			C = np.reshape(C[:,0:chi], (d, chi, chi))
-			# Gamma_lp1_new = np.tensordot(np.diag(OneOver(self.Lambda[l+1,:])), C, axes=(1,1))
-			# Gamma_lp1_new = np.transpose(Gamma_lp1_new, (1,0,2))
 			Gamma_lp1_new = C
 			self.Gamma[l+1] = Gamma_lp1_new
 
@@ -173,17 +136,11 @@ class TensorGroup(object):
 
 			# Treat the L-2 case normally:
 			A = np.reshape(A[:,0:chi], (d, chi, chi))
-			# Gamma_l_new = np.tensordot(np.diag(OneOver(self.Lambda[l-1,:])), A, axes=(1,1))
-			# Gamma_l_new = np.transpose(Gamma_l_new, (1,0,2))
 			Gamma_l_new = A
 			self.Gamma[l] = Gamma_l_new
 
 			# Gamma_(L-1):
 			self.Gamma[l+1][:,0:d] = C
-		# print (l, self.tau)
-		# print B
-		# print (l, np.shape(A), np.shape(C))
-
 
 # Helper functions for initialization:
 
@@ -254,16 +211,6 @@ def Gamma0(coeffs):
 	mat[:,0] = coeffs[L-1,:]
 	Gamma.append(mat)
 	return Gamma
-
-# # Divide a 1d array
-# def OneOver(array):
-# 	for i in range(0, len(array)):
-# 		if np.absolute(array[i]) >= cutoff:
-# 			array[i] = 1/complex(array[i])
-# 		else:
-# 			array[i] = 0
-# 	return array
-
 
 # Operator definitions:
 
