@@ -5,10 +5,10 @@ import math
 # d = Number cutoff, chi = Entanglement cutoff,
 # L = Number of sites
 # Note: require chi > d!!!
-d = 7; chi = 10; L = 15; delta = 0.01; N = 10;
+d = 3; chi = 10; L = 5; delta = 0.01; N = 2;
 
 # Model parameters:
-J = 1; U = 1;
+J = 1; U = 1.5;
 
 # Class for handling the Lambda, Gamma, and Theta tensors
 class TensorGroup(object):
@@ -16,20 +16,9 @@ class TensorGroup(object):
 	def __init__(self, coeffs):
 		self.Lambda = lambda0()
 		self.Gamma = Gamma0(coeffs)
+		self.tau = 0
 
 	def Build_Theta(self, l):
-		# Lambda = self.Lambda
-		# Gamma = self.Gamma
-		# theta = np.tensordot(np.diag(Lambda[l,:]), Gamma[l+1,:,:,:], axes=(1,1))
-		# theta = np.tensordot(Gamma[l,:,:,:], theta, axes=(2,0))
-		# theta = np.tensordot(np.diag(Lambda[l-1,:]), theta, axes=(1,1))
-		# theta = np.tensordot(theta, np.diag(Lambda[l+1,:]), axes=(-1, 0))
-
-		# # Now indices are [a_(l-1), i_l, i_(l+1), a_(l+1)]
-		# # Swap them to [i_l, i_(l+1), a_(l-1), a_(l+1)] to avoid confusion
-		# theta = np.transpose(theta,(1,2,0,3))
-		# return theta
-
 		Lambda = self.Lambda
 		Gamma_lp1 = self.Gamma[l+1]
 		Gamma_l = self.Gamma[l]
@@ -68,7 +57,7 @@ class TensorGroup(object):
 		# Build the appropriate Theta tensor
 		Theta = self.Build_Theta(l)
 		# Apply the unitary matrix V
-		Theta = np.tensordot(V, Theta, axes=([2,3], [0,1]))
+		Theta = np.tensordot(V, Theta, axes=([-2,-1], [0,1]))
 		
 		# Need to treat boundary subsystems differently...
 		if (l != 0 and l != L - 2):
@@ -79,7 +68,11 @@ class TensorGroup(object):
 			A, B, C = np.linalg.svd(Theta); C = C.T
 
 			# Truncate at chi eigenvalues and enforce normalization
-			self.Lambda[l, :] = B[0:chi] / np.linalg.norm(B[0:chi])
+			# self.Lambda[l, :] = B[0:chi] / np.linalg.norm(B[0:chi])
+			self.Lambda[l, :] = B[0:chi]
+
+			# Keep track of the truncation error accumulated on this step
+			self.tau += 1 - np.linalg.norm(B[0:chi])**2
 
 			# Find the new Gammas
 
@@ -111,7 +104,11 @@ class TensorGroup(object):
 			# Enforce normalization
 			# Don't need to truncate here because chi is bounded by
 			# the dimension of the smaller subsystem, here = d < chi
-			self.Lambda[l,0:d] = B / np.linalg.norm(B)
+			# self.Lambda[l,0:d] = B / np.linalg.norm(B)
+			self.Lambda[l,0:d] = B
+
+			# Keep track of the truncation error accumulated on this step
+			self.tau += 1 - np.linalg.norm(B)**2
 
 			# Find the new Gammas
 			# Gamma_l:
@@ -134,7 +131,11 @@ class TensorGroup(object):
 			# Enforce normalization
 			# Don't need to truncate here because chi is bounded by
 			# the dimension of the smaller subsystem, here = d < chi
-			self.Lambda[l,0:d] = B / np.linalg.norm(B)
+			# self.Lambda[l,0:d] = B / np.linalg.norm(B)
+			self.Lambda[l,0:d] = B
+
+			# Keep track of the truncation error accumulated on this step
+			self.tau += 1 - np.linalg.norm(B)**2
 
 			# Find the new Gammas
 
@@ -146,7 +147,7 @@ class TensorGroup(object):
 
 			# Gamma_(L-1):
 			self.Gamma[l+1][:,0:d] = C
-
+		print (l, self.tau)
 
 
 # Helper functions for initialization:
@@ -233,6 +234,8 @@ def OneOver(array):
 	return array
 
 
+# Operator definitions:
+
 # Build a, a_dag, n, n_2site
 a = np.zeros((d,d))
 for i in range(0,d-1):
@@ -245,6 +248,6 @@ H_2site = -J * (np.kron(a_dag, a) + np.kron(a, a_dag)) + (U / 2) * np.dot(n_2sit
 # Diagonalize 
 w,v = np.linalg.eig(H_2site)
 V_odd = np.reshape(np.dot(np.dot(v,np.diag(np.exp(-delta*(w) / 2))), np.transpose(v)), (d,d,d,d))
-V_odd_sq = np.reshape(np.dot(np.dot(v,np.diag(np.exp(-delta*(w) ))), np.transpose(v)), (d,d,d,d))
+V_odd_sq = np.reshape(np.dot(np.dot(v,np.diag(np.exp(-delta*(w)))), np.transpose(v)), (d,d,d,d))
 V_even = np.reshape(np.dot(np.dot(v,np.diag(np.exp(-delta*(w)))), np.transpose(v)), (d,d,d,d))
 
