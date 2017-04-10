@@ -23,18 +23,21 @@ V_even_last = helpers.V_even_last
 
 # Loop: do all the odds, then evens, then odds
 for i in range(0, N):
+	# Evolve odd links delta * t / 2
 	for h in range(0, L-1):
 		if h % 2 == 1:
 			if (h == L - 2):
 				sim.Update(V_odd_last, h)
 			else:
 				sim.Update(V_odd, h)
+	# Evolve even links delta * t
 	for j in range(0, L-1):
 		if j % 2 == 0:
 			if (j == L - 2):
 				sim.Update(V_even_last, j)
 			else:
 				sim.Update(V_even, j)
+	# Evolve odd links delta * t / 2
 	for k in range(0, L-1):
 		if k % 2 == 1:
 			if (k == L - 2):
@@ -46,6 +49,7 @@ for i in range(0, N):
 print sim.tau
 
 # Calculate expectation values of a
+# Superfluid order parameter
 a_avg = np.zeros(L, dtype=np.complex64)
 for r in range(0, L):
 	a_avg[r] = np.trace(np.dot(sim.Single_Site_Rho(r), helpers.a))

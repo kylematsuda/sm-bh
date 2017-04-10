@@ -7,7 +7,7 @@ J = 1; U = 0 * J;
 # Simulation parameters:
 # d = Number cutoff, chi = Entanglement cutoff,
 # L = Number of sites
-# Note: require chi > d!!!
+# Note: need chi > d!!!
 d = 5; chi = 50; L = 10; delta = 0.01 / J; N = 50;
 
 # Class for handling the Lambda, Gamma, and Theta tensors
@@ -25,7 +25,7 @@ class TensorGroup(object):
 
 		# Build the Theta tensor
 		# NOTE: this definition of Theta DOES NOT agree with the one in
-		# the Mishmash thesis. Using alternate def of Theta to reduce numerical errors.
+		# the Mishmash thesis. Here we're using an alternate def of Theta to reduce numerical errors.
 		# This definition of Theta does not include the Lambdas on the far left and right of the formula,
 		# since we want to eventually divide them off anyway.
 		if (l != 0 and l != L-2):
@@ -76,14 +76,11 @@ class TensorGroup(object):
 			# Keep track of the truncation error accumulated on this step
 			self.tau += delta * (1 - np.linalg.norm(B[0:chi])**2)
 
-			# Find the new Gammas
-
+			# Find the new Gammas:
 			# Gamma_l:
-			# Reshape A
 			A = np.reshape(A[:, 0:chi], (d, chi, chi))
 			Gamma_l_new = A
 			self.Gamma[l] = Gamma_l_new
-
 			# Gamma_(l+1):
 			C = np.reshape(C[:, 0:chi], (d, chi, chi))
 			Gamma_lp1_new = C
@@ -106,11 +103,11 @@ class TensorGroup(object):
 			# Keep track of the truncation error accumulated on this step
 			self.tau += delta * (1 - np.linalg.norm(B)**2)
 
-			# Find the new Gammas
+			# Find the new Gammas:
 			# Gamma_l:
+			# Note: can't truncate because the matrix
+			# is smaller than in the non-edge cases
 			self.Gamma[l][:,0:d] = A
-
-			# Gamma_(l+1):
 			# Treat the l = 1 case normally...
 			C = np.reshape(C[:,0:chi], (d, chi, chi))
 			Gamma_lp1_new = C
@@ -132,14 +129,14 @@ class TensorGroup(object):
 			# Keep track of the truncation error accumulated on this step
 			self.tau += delta * (1 - np.linalg.norm(B)**2)
 
-			# Find the new Gammas
-
+			# Find the new Gammas:
 			# Treat the L-2 case normally:
 			A = np.reshape(A[:,0:chi], (d, chi, chi))
 			Gamma_l_new = A
 			self.Gamma[l] = Gamma_l_new
-
 			# Gamma_(L-1):
+			# Note: can't truncate because the matrix
+			# is smaller than in the non-edge cases
 			self.Gamma[l+1][:,0:d] = C
 
 	# Calculate the reduced density matrix,
@@ -148,6 +145,7 @@ class TensorGroup(object):
 	def Single_Site_Rho(self, k):
 		Gamma_k = self.Gamma[k]
 		# Need to treat boundaries differently...
+		# See Mishmash thesis pg. 73 for formulas
 		if (k != 0 and k != L - 1):
 			Rho_L = np.tensordot(np.diag(self.Lambda[k-1,:]), np.conjugate(Gamma_k), axes=(1,1))
 			Rho_L = np.tensordot(Rho_L, np.diag(self.Lambda[k,:]), axes=(-1,0))
@@ -217,13 +215,18 @@ def Initialize_States(L, n_max, n_onsite, flag):
 # Appendix A, assuming product wavefunctions
 # Important not to inadverdently cast to real numbers instead of complex!
 def lambda0():
+	# From Appendix A, pg. 173
 	mat = np.zeros((L-1, chi), dtype=np.complex64)
 	mat[:,0] = 1
 	return mat
 
+# From Appendix A, pg. 173
 def Gamma0(coeffs):
 	Gamma = []
 
+	# Note that the first and last Gamma tensors
+	# have a different form (two indices instead of three),
+	# so they need to be initialized separately
 	mat = np.zeros((d, chi), dtype=np.complex64)
 	mat[:,0] = coeffs[0,:]
 	Gamma.append(mat)
