@@ -4,7 +4,8 @@ import math
 # Simulation parameters:
 # d = Number cutoff, chi = Entanglement cutoff,
 # L = Number of sites
-d = 7; chi = 10; L = 10; delta = 0.01
+# Note: require chi > d!!!
+d = 7; chi = 10; L = 15; delta = 0.01; N = 10;
 
 # Model parameters:
 J = 1; U = 1;
@@ -17,51 +18,136 @@ class TensorGroup(object):
 		self.Gamma = Gamma0(coeffs)
 
 	def Build_Theta(self, l):
-		Lambda = self.Lambda
-		Gamma = self.Gamma
-		theta = np.tensordot(np.diag(Lambda[l,:]), Gamma[l+1,:,:,:], axes=(1,1))
-		theta = np.tensordot(Gamma[l,:,:,:], theta, axes=(2,0))
-		theta = np.tensordot(np.diag(Lambda[l-1,:]), theta, axes=(1,1))
-		theta = np.tensordot(theta, np.diag(Lambda[l+1,:]), axes=(-1, 0))
+		# Lambda = self.Lambda
+		# Gamma = self.Gamma
+		# theta = np.tensordot(np.diag(Lambda[l,:]), Gamma[l+1,:,:,:], axes=(1,1))
+		# theta = np.tensordot(Gamma[l,:,:,:], theta, axes=(2,0))
+		# theta = np.tensordot(np.diag(Lambda[l-1,:]), theta, axes=(1,1))
+		# theta = np.tensordot(theta, np.diag(Lambda[l+1,:]), axes=(-1, 0))
 
-		# Now indices are [a_(l-1), i_l, i_(l+1), a_(l+1)]
-		# Swap them to [i_l, i_(l+1), a_(l-1), a_(l+1)] to avoid confusion
-		theta = np.transpose(theta,(1,2,0,3))
+		# # Now indices are [a_(l-1), i_l, i_(l+1), a_(l+1)]
+		# # Swap them to [i_l, i_(l+1), a_(l-1), a_(l+1)] to avoid confusion
+		# theta = np.transpose(theta,(1,2,0,3))
+		# return theta
+
+		Lambda = self.Lambda
+		Gamma_lp1 = self.Gamma[l+1]
+		Gamma_l = self.Gamma[l]
+
+		if (l != 0 and l != L-2):
+			theta = np.tensordot(np.diag(Lambda[l,:]), Gamma_lp1[:,:,:], axes=(1,1))
+			theta = np.tensordot(Gamma_l[:,:,:], theta, axes=(2,0))
+			theta = np.tensordot(np.diag(Lambda[l-1,:]), theta, axes=(1,1))
+			theta = np.tensordot(theta, np.diag(Lambda[l+1,:]), axes=(-1, 0))
+
+			# Now indices are [a_(l-1), i_l, i_(l+1), a_(l+1)]
+			# Swap them to [i_l, i_(l+1), a_(l-1), a_(l+1)] to avoid confusion
+			theta = np.transpose(theta,(1,2,0,3))
+
+		# Structure of Gamma^(0) and Gamma^(L-1) are different...
+		elif (l == 0):
+			theta = np.tensordot(np.diag(Lambda[l,:]), Gamma_lp1[:,:,:], axes=(1,1))
+			theta = np.tensordot(Gamma_l[:,:], theta, axes=(1,0))
+			theta = np.tensordot(theta, np.diag(Lambda[l+1,:]), axes=(-1, 0))
+		elif (l == L-2):
+			theta = np.tensordot(np.diag(Lambda[l,:]), Gamma_lp1[:,:], axes=(1,1))
+			theta = np.tensordot(Gamma_l[:,:,:], theta, axes=(2,0))
+			theta = np.tensordot(np.diag(Lambda[l-1,:]), theta, axes=(1,1))
+			# Swap indices to be (i_l, i_l + 1, a_(l-1))
+			theta = np.transpose(theta, (1,2,0))	
 		return theta
 
+	# This follows the discussion in
+	# http://inside.mines.edu/~lcarr/theses/mishmash_thesis_2008.pdf,
+	# section 3.2.3.
+	# Note that while the linked thesis indexes from 1,
+	# we index from zero here to avoid confusion in the code.
+	# Therefore, l runs from [0, ..., L - 1] in our case,
+	# instead of [1, ..., L] as shown in the thesis.
 	def Update(self, V, l):
 		# Build the appropriate Theta tensor
 		Theta = self.Build_Theta(l)
 		# Apply the unitary matrix V
 		Theta = np.tensordot(V, Theta, axes=([2,3], [0,1]))
 		
-		# Reshape to a square matrix and do singular value decomposition:
-		Theta = np.reshape(np.transpose(Theta, (0,2,1,3)), (d*chi, d*chi))
-		# A and transpose.C contain the new Gamma[l] and Gamma[l+1]
-		# B contains new Lambda[l]
-		A, B, C = np.linalg.svd(Theta); C = C.T
+		# Need to treat boundary subsystems differently...
+		if (l != 0 and l != L - 2):
+			# Reshape to a square matrix and do singular value decomposition:
+			Theta = np.reshape(np.transpose(Theta, (0,2,1,3)), (d*chi, d*chi))
+			# A and transpose.C contain the new Gamma[l] and Gamma[l+1]
+			# B contains new Lambda[l]
+			A, B, C = np.linalg.svd(Theta); C = C.T
 
-		# Truncate at chi eigenvalues and enforce normalization
-		self.Lambda[l, :] = B[0:chi] / np.linalg.norm(B[0:chi])
+			# Truncate at chi eigenvalues and enforce normalization
+			self.Lambda[l, :] = B[0:chi] / np.linalg.norm(B[0:chi])
 
-		# Find the new Gammas
+			# Find the new Gammas
 
-		# Gamma_l:
-		# First, reshape A
-		A = np.reshape(A[:,0:chi], (d, chi, chi))
-		# Next, "divide off" Lambda[l-1]
-		# (see http://inside.mines.edu/~lcarr/theses/mishmash_thesis_2008.pdf,
-		#	equation 3.40)
-		Gamma_l_new = np.tensordot(np.diag(OneOver(self.Lambda[l-1,:])), A, axes=(1,1))
-		Gamma_l_new = np.transpose(Gamma_l_new, (1,0,2))
-		self.Gamma[l,:,:,:] = Gamma_l_new
+			# Gamma_l:
+			# First, reshape A
+			A = np.reshape(A[:,0:chi], (d, chi, chi))
+			# Next, "divide off" Lambda[l-1]
+			# (see http://inside.mines.edu/~lcarr/theses/mishmash_thesis_2008.pdf,
+			#	equation 3.40)
+			Gamma_l_new = np.tensordot(np.diag(OneOver(self.Lambda[l-1,:])), A, axes=(1,1))
+			Gamma_l_new = np.transpose(Gamma_l_new, (1,0,2))
+			self.Gamma[l] = Gamma_l_new
 
-		# Gamma_(l+1):
-		# Do the same thing (note that C has already been transposed)
-		C = np.reshape(C[:,0:chi], (d, chi, chi))
-		Gamma_lp1_new = np.tensordot(np.diag(OneOver(self.Lambda[l+1,:])), C, axes=(1,1))
-		Gamma_lp1_new = np.transpose(Gamma_lp1_new, (1,0,2))
-		self.Gamma[l+1,:,:,:] = Gamma_lp1_new
+			# Gamma_(l+1):
+			# Do the same thing (note that C has already been transposed)
+			C = np.reshape(C[:,0:chi], (d, chi, chi))
+			Gamma_lp1_new = np.tensordot(np.diag(OneOver(self.Lambda[l+1,:])), C, axes=(1,1))
+			Gamma_lp1_new = np.transpose(Gamma_lp1_new, (1,0,2))
+			self.Gamma[l+1] = Gamma_lp1_new
+
+		# The Gamma_0 tensor has one less index... need to treat slightly differently
+		elif (l == 0):
+			# Reshape to a square matrix and do singular value decomposition:
+			Theta = np.reshape(Theta, (d, d*chi))
+			# A and transpose.C contain the new Gamma[l] and Gamma[l+1]
+			# B contains new Lambda[l]
+			A, B, C = np.linalg.svd(Theta); C = C.T
+
+			# Enforce normalization
+			# Don't need to truncate here because chi is bounded by
+			# the dimension of the smaller subsystem, here = d < chi
+			self.Lambda[l,0:d] = B / np.linalg.norm(B)
+
+			# Find the new Gammas
+			# Gamma_l:
+			self.Gamma[l][:,0:d] = A
+
+			# Gamma_(l+1):
+			# Treat the l = 1 case normally...
+			C = np.reshape(C[:,0:chi], (d, chi, chi))
+			Gamma_lp1_new = np.tensordot(np.diag(OneOver(self.Lambda[l+1,:])), C, axes=(1,1))
+			Gamma_lp1_new = np.transpose(Gamma_lp1_new, (1,0,2))
+			self.Gamma[l+1] = Gamma_lp1_new
+
+		elif (l == L - 2):
+			# Reshape to a square matrix and do singular value decomposition:
+			Theta = np.reshape(Theta, (d*chi, d))
+			# A and transpose.C contain the new Gamma[l] and Gamma[l+1]
+			# B contains new Lambda[l]
+			A, B, C = np.linalg.svd(Theta); C = C.T
+
+			# Enforce normalization
+			# Don't need to truncate here because chi is bounded by
+			# the dimension of the smaller subsystem, here = d < chi
+			self.Lambda[l,0:d] = B / np.linalg.norm(B)
+
+			# Find the new Gammas
+
+			# Treat the L-2 case normally:
+			A = np.reshape(A[:,0:chi], (d, chi, chi))
+			Gamma_l_new = np.tensordot(np.diag(OneOver(self.Lambda[l-1,:])), A, axes=(1,1))
+			Gamma_l_new = np.transpose(Gamma_l_new, (1,0,2))
+			self.Gamma[l] = Gamma_l_new
+
+			# Gamma_(L-1):
+			self.Gamma[l+1][:,0:d] = C
+
+
 
 # Helper functions for initialization:
 
@@ -74,7 +160,7 @@ class TensorGroup(object):
 # flag = 1: approximate coherent state with alpha = sqrt(n_onsite)
 def Initialize_States(L, n_max, n_onsite, flag):
 	# Initialize a matrix of zeros
-	mat = np.zeros((L, n_max))
+	mat = np.zeros((L, n_max), dtype=np.complex64)
 
 	# If not coherent states
 	if (flag == 0):
@@ -112,15 +198,32 @@ def Initialize_States(L, n_max, n_onsite, flag):
 # Appendix A, assuming product wavefunctions
 # Important not to inadverdently cast to real numbers instead of complex!
 def lambda0():
-	mat = np.zeros((L, chi), dtype=np.complex64)
+	mat = np.zeros((L-1, chi), dtype=np.complex64)
 	mat[:,0] = 1
 	return mat
 
+# def Gamma0(coeffs):
+# 	mat = np.zeros((L, d, chi, chi), dtype=np.complex64)
+# 	for i in range(0, L):
+# 		mat[i, :, 0, 0] = coeffs[i,:]
+# 	return mat
+
 def Gamma0(coeffs):
-	mat = np.zeros((L, d, chi, chi), dtype=np.complex64)
-	for i in range(0, L):
-		mat[i, :, 0, 0] = coeffs[i,:]
-	return mat
+	Gamma = []
+
+	mat = np.zeros((d, chi), dtype=np.complex64)
+	mat[:,0] = coeffs[0,:]
+	Gamma.append(mat)
+
+	for i in range(1, L-1):
+		mat = np.zeros((d, chi, chi), dtype=np.complex64)
+		mat[:, 0, 0] = coeffs[i,:]
+		Gamma.append(mat)
+
+	mat = np.zeros((d, chi), dtype=np.complex64)
+	mat[:,0] = coeffs[L-1,:]
+	Gamma.append(mat)
+	return Gamma
 
 # Divide a 1d array
 def OneOver(array):
@@ -141,5 +244,7 @@ n_2site = np.kron(n_op, np.identity(d))
 H_2site = -J * (np.kron(a_dag, a) + np.kron(a, a_dag)) + (U / 2) * np.dot(n_2site, n_2site - np.identity(d**2))
 # Diagonalize 
 w,v = np.linalg.eig(H_2site)
-V_2site = np.reshape(np.dot(np.dot(v,np.diag(np.exp(-delta*(w)))), np.transpose(v)), (d,d,d,d))
+V_odd = np.reshape(np.dot(np.dot(v,np.diag(np.exp(-delta*(w) / 2))), np.transpose(v)), (d,d,d,d))
+V_odd_sq = np.reshape(np.dot(np.dot(v,np.diag(np.exp(-delta*(w) ))), np.transpose(v)), (d,d,d,d))
+V_even = np.reshape(np.dot(np.dot(v,np.diag(np.exp(-delta*(w)))), np.transpose(v)), (d,d,d,d))
 
