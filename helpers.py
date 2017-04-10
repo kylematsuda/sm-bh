@@ -2,13 +2,13 @@ import numpy as np
 import math
 
 # Model parameters:
-J = 1; U = 1.5 * J;
+J = 1; U = 0 * J;
 
 # Simulation parameters:
 # d = Number cutoff, chi = Entanglement cutoff,
 # L = Number of sites
 # Note: require chi > d!!!
-d = 5; chi = 50; L = 10; delta = 0.01 / J; N = 100;
+d = 5; chi = 50; L = 10; delta = 0.01 / J; N = 50;
 
 # Class for handling the Lambda, Gamma, and Theta tensors
 class TensorGroup(object):
@@ -142,6 +142,32 @@ class TensorGroup(object):
 			# Gamma_(L-1):
 			self.Gamma[l+1][:,0:d] = C
 
+	# Calculate the reduced density matrix,
+	# tracing over all sites except site k
+	# See Mishmash thesis for derivation
+	def Single_Site_Rho(self, k):
+		Gamma_k = self.Gamma[k]
+		# Need to treat boundaries differently...
+		if (k != 0 and k != L - 1):
+			Rho_L = np.tensordot(np.diag(self.Lambda[k-1,:]), np.conjugate(Gamma_k), axes=(1,1))
+			Rho_L = np.tensordot(Rho_L, np.diag(self.Lambda[k,:]), axes=(-1,0))
+			Rho_R = np.tensordot(np.diag(self.Lambda[k,:]), Gamma_k[:,:,:], axes=(1,1))
+			Rho_R = np.tensordot(Rho_R, np.diag(self.Lambda[k,:]), axes=(-1,0))
+			Rho = np.tensordot(Rho_L, Rho_R, axes=([0,2],[0,2]))
+			Rho = np.transpose(Rho)
+		elif (k == 0):
+			Rho_L = np.tensordot(np.conjugate(Gamma_k), np.diag(self.Lambda[k,:]), axes=(-1,0))
+			Rho_R = np.tensordot(Gamma_k, np.diag(self.Lambda[k,:]), axes=(-1,-1))
+			Rho = np.tensordot(Rho_L, Rho_R, axes=(-1,-1))
+			Rho = np.transpose(Rho)
+		elif (k == L - 1):
+			Rho_L = np.tensordot(np.diag(self.Lambda[k-1,:]), np.conjugate(Gamma_k), axes=(-1,-1))
+			Rho_R = np.tensordot(np.diag(self.Lambda[k-1,:]), Gamma_k, axes=(-1, -1))
+			Rho = np.tensordot(Rho_L, Rho_R, axes=(0,0))
+			Rho = np.transpose(Rho)
+		return Rho
+
+
 # Helper functions for initialization:
 
 # Initialize state vectors (product state)
@@ -215,7 +241,7 @@ def Gamma0(coeffs):
 # Operator definitions:
 
 # Build a, a_dag, n, n_2site
-a = np.zeros((d,d))
+a = np.zeros((d,d), dtype=np.complex64)
 for i in range(0,d-1):
 	a[i, i+1] = math.sqrt(i+1)
 a_dag = np.transpose(a)
