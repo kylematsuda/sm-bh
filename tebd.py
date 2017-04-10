@@ -15,17 +15,30 @@ sim = helpers.TensorGroup(init)
 # Unitary two-site operators
 V_odd = helpers.V_odd
 V_even = helpers.V_even
+# Note that the last link has a slightly different form,
+# therefore need separate unitaries
+V_odd_last = helpers.V_odd_last
+V_even_last = helpers.V_even_last
 
 # Loop: do all the odds, then evens, then odds
 for i in range(0, N):
 	for h in range(0, L-1):
 		if h % 2 == 1:
-			sim.Update(V_odd, h)
+			if (h == L - 2):
+				sim.Update(V_odd_last, h)
+			else:
+				sim.Update(V_odd, h)
 	for j in range(0, L-1):
 		if j % 2 == 0:
-			sim.Update(V_even, j)
+			if (j == L - 2):
+				sim.Update(V_even_last, j)
+			else:
+				sim.Update(V_even, j)
 	for k in range(0, L-1):
 		if k % 2 == 1:
-			sim.Update(V_odd, k)
+			if (k == L - 2):
+				sim.Update(V_odd_last, k)
+			else:
+				sim.Update(V_odd, k)
 
 print sim.tau
