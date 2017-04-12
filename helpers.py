@@ -8,7 +8,7 @@ J = 0; U = 20.0;
 # d = Number cutoff, chi = Entanglement cutoff,
 # L = Number of sites
 # Note: need chi > d!!!
-d = 8; chi = 50; L = 8; delta = 0.01; N = 10;
+d = 8; chi = 50; L = 8; delta = 0.01; N = 100;
 
 # Class for handling the Lambda, Gamma, and Theta tensors
 class TensorGroup(object):
@@ -25,12 +25,14 @@ class TensorGroup(object):
 
 		# Build the Theta tensor
 		# NOTE: this definition of Theta DOES NOT agree with the one in
-		# the Mishmash thesis. Here we're using an alternate def of Theta to reduce numerical errors.
-		# This definition of Theta does not include the Lambdas on the far left and right of the formula,
+		# the Mishmash thesis.
+		# Here we're using an alternate def of Theta to reduce numerical errors.
+		# This definition of Theta does not include the Lambdas
+		# on the far left and right of the formula,
 		# since we want to eventually divide them off anyway.
 		if (l != 0 and l != L-2):
-			theta = np.tensordot(np.diag(Lambda[l,:]), Gamma_lp1[:,:,:], axes=(1,1))
-			theta = np.tensordot(Gamma_l[:,:,:], theta, axes=(2,0))
+			theta = np.tensordot(np.diag(Lambda[l,:]), Gamma_lp1, axes=(1,1))
+			theta = np.tensordot(Gamma_l, theta, axes=(2,0))
 
 			# # Now indices are [i_l, a_(l-1), i_(l+1), a_(l+1)]
 			# # Swap them to [i_l, i_(l+1), a_(l-1), a_(l+1)] to avoid confusion
@@ -38,12 +40,12 @@ class TensorGroup(object):
 
 		# Structure of Gamma^(0) and Gamma^(L-1) are different...
 		elif (l == 0):
-			theta = np.tensordot(np.diag(Lambda[l,:]), Gamma_lp1[:,:,:], axes=(1,1))
-			theta = np.tensordot(Gamma_l[:,:], theta, axes=(1,0))
+			theta = np.tensordot(np.diag(Lambda[l,:]), Gamma_lp1, axes=(1,1))
+			theta = np.tensordot(Gamma_l, theta, axes=(1,0))
 			# Indices already [i_l, i_(l + 1), a_(l + 1)]
 		elif (l == L-2):
-			theta = np.tensordot(np.diag(Lambda[l,:]), Gamma_lp1[:,:], axes=(1,1))
-			theta = np.tensordot(Gamma_l[:,:,:], theta, axes=(-1,0))
+			theta = np.tensordot(np.diag(Lambda[l,:]), Gamma_lp1, axes=(1,1))
+			theta = np.tensordot(Gamma_l, theta, axes=(-1,0))
 			# Swap indices to be [i_l, i_(l + 1), a_(l - 1)]
 			theta = np.transpose(theta, (0,2,1))
 		return theta
@@ -59,7 +61,7 @@ class TensorGroup(object):
 		# Build the appropriate Theta tensor
 		Theta = self.Build_Theta(l)
 		# Apply the unitary matrix V
-		Theta = np.tensordot(V, Theta, axes=([-2,-1], [0,1]))
+		Theta = np.tensordot(V, Theta, axes=([2,3], [0,1]))
 		
 		# Need to treat boundary subsystems differently...
 		if (l != 0 and l != L - 2):
@@ -71,7 +73,7 @@ class TensorGroup(object):
 			C = np.transpose(C)
 
 			# Truncate at chi eigenvalues and enforce normalization
-			self.Lambda[l, :] = B[0:chi] / np.linalg.norm(B[0:chi])
+			self.Lambda[l,:] = B[0:chi] / np.linalg.norm(B[0:chi])
 
 			# Keep track of the truncation error accumulated on this step
 			self.tau += delta * (1 - np.linalg.norm(B[0:chi])**2)
@@ -79,13 +81,15 @@ class TensorGroup(object):
 			# Find the new Gammas:
 			# Gamma_l:
 			A = np.reshape(A[:, 0:chi], (d, chi, chi))
-			Gamma_l_new = A
+			# Right multiplying by Lambda_l means that we're effectively storing
+			# the A tensors instead of the Gamma tensors.
+			# See Quantum Gases: Finite Temperature and Non-Equilibrium Dynamics, pg. 341
+			Gamma_l_new = np.tensordot(A, np.diag(self.Lambda[l]), axes=(-1, 0))
 			self.Gamma[l] = Gamma_l_new
 
 			# Gamma_(l+1):
 			C = np.reshape(C[:, 0:chi], (d, chi, chi))
-			# Needed to correct the order of indices
-			Gamma_lp1_new = np.transpose(C, (0,2,1))
+			Gamma_lp1_new = C
 			self.Gamma[l+1] = Gamma_lp1_new
 
 		# The Gamma_0 tensor has one less index... need to treat slightly differently
@@ -109,11 +113,13 @@ class TensorGroup(object):
 			# Gamma_l:
 			# Note: can't truncate because the matrix
 			# is smaller than in the non-edge cases
-			self.Gamma[l][:,0:d] = A
+			# Right multiplying by Lambda_l means that we're effectively storing
+			# the A tensors instead of the Gamma tensors.
+			# See Quantum Gases: Finite Temperature and Non-Equilibrium Dynamics, pg. 341
+			self.Gamma[l][:, 0:d] = np.tensordot(A, np.diag(self.Lambda[l,0:d]), axes=(-1, 0))
 			# Treat the l = 1 case normally...
 			C = np.reshape(C[:, 0:chi], (d, chi, chi))
-			# Needed to correct the order of indices
-			Gamma_lp1_new = np.transpose(C, (0,2,1))
+			Gamma_lp1_new = C
 			self.Gamma[l+1] = Gamma_lp1_new
 
 		elif (l == L - 2):
@@ -135,7 +141,10 @@ class TensorGroup(object):
 			# Find the new Gammas:
 			# Treat the L-2 case normally:
 			A = np.reshape(A[:,0:chi], (d, chi, chi))
-			Gamma_l_new = A
+			# Right multiplying by Lambda_l means that we're effectively storing
+			# the A tensors instead of the Gamma tensors.
+			# See Quantum Gases: Finite Temperature and Non-Equilibrium Dynamics, pg. 341
+			Gamma_l_new = np.tensordot(A, np.diag(self.Lambda[l]), axes=(-1, 0))
 			self.Gamma[l] = Gamma_l_new
 
 			# Gamma_(L-1):
@@ -153,7 +162,7 @@ class TensorGroup(object):
 		if (k != 0 and k != L - 1):
 			Rho_L = np.tensordot(np.diag(self.Lambda[k-1,:]), np.conjugate(Gamma_k), axes=(1,1))
 			Rho_L = np.tensordot(Rho_L, np.diag(self.Lambda[k,:]), axes=(-1,0))
-			Rho_R = np.tensordot(np.diag(self.Lambda[k,:]), Gamma_k[:,:,:], axes=(1,1))
+			Rho_R = np.tensordot(np.diag(self.Lambda[k,:]), Gamma_k, axes=(1,1))
 			Rho_R = np.tensordot(Rho_R, np.diag(self.Lambda[k,:]), axes=(-1,0))
 			Rho = np.tensordot(Rho_L, Rho_R, axes=([0,2],[0,2]))
 			Rho = np.transpose(Rho)
