@@ -34,29 +34,32 @@ V_even_last = helpers.V_even_last
 # Array to hold expectation values
 a_avg = np.zeros((L, N), dtype=np.complex64)
 
+# Need to treat last site differently
+if ((L-1) % 2 == 0):
+	V_last = helpers.V_odd_last
+else:
+	V_last = helpers.V_even_last
+
 # Loop: do all the odds, then evens, then odds
 for i in range(0, N):
 	# Evolve odd links delta * t / 2
 	for h in range(0, L-1):
 		if h % 2 == 1:
-			if (h == L - 2):
-				sim.Update(V_odd_last, h)
-			else:
-				sim.Update(V_odd, h)
+			sim.Update(V_odd, h)
+		if ((L-1) % 2 == 1):
+			sim.Update(V_last, L-2)
 	# Evolve even links delta * t
 	for j in range(0, L-1):
 		if j % 2 == 0:
-			if (j == L - 2):
-				sim.Update(V_even_last, j)
-			else:
-				sim.Update(V_even, j)
+			sim.Update(V_even, j)
+		if ((L-1) % 2 == 0):
+			sim.Update(V_last, L-2)
 	# Evolve odd links delta * t / 2
 	for k in range(0, L-1):
 		if k % 2 == 1:
-			if (k == L - 2):
-				sim.Update(V_odd_last, k)
-			else:
-				sim.Update(V_odd, k)
+			sim.Update(V_odd, k)
+		if ((L-1) % 2 == 0):
+			sim.Update(V_last, L-2)
 	
 	# Calculate expectation values of |a|
 	for r in range(0, L):

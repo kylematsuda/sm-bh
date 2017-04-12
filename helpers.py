@@ -252,14 +252,13 @@ n_op = np.dot(a_dag, a)
 # Build two site Hamiltonian:
 H_2site = -J * (np.kron(a_dag, a) + np.kron(a, a_dag)) + (U / 2) * np.kron(np.dot(n_op, n_op - np.identity(d)), np.identity(d))
 # Need to treat the last link differently...
-# Need to include onsite term for the last site also
-H_2site_last = -J * (np.kron(a_dag, a) + np.kron(a, a_dag)) + (U / 2) * np.kron(np.dot(n_op, n_op - np.identity(d)), np.identity(d)) + (U/2) * np.kron(np.identity(d), np.dot(n_op, n_op - np.identity(d)))
+H_last = (U/2) * np.kron(np.identity(d), np.dot(n_op, n_op - np.identity(d)))
 # Diagonalize 
 w,v = np.linalg.eig(H_2site)
 V_odd = np.reshape(np.dot(np.dot(v,np.diag(np.exp(-1j*delta*(w) / 2))), np.transpose(v)), (d,d,d,d))
 V_even = np.reshape(np.dot(np.dot(v,np.diag(np.exp(-1j*delta*(w)))), np.transpose(v)), (d,d,d,d))
 # Same thing for last site
-wp, vp = np.linalg.eig(H_2site_last)
+wp, vp = np.linalg.eig(H_last)
 V_odd_last = np.reshape(np.dot(np.dot(vp,np.diag(np.exp(-1j*delta*(wp) / 2))), np.transpose(vp)), (d,d,d,d))
 V_even_last = np.reshape(np.dot(np.dot(vp,np.diag(np.exp(-1j*delta*(wp)))), np.transpose(vp)), (d,d,d,d))
 
