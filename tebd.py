@@ -32,34 +32,38 @@ V_odd_last = helpers.V_odd_last
 V_even_last = helpers.V_even_last
 
 # Array to hold expectation values
-a_avg = np.zeros((L, N), dtype=np.complex64)
+a_avg = np.zeros((L, N+1), dtype=np.complex64)
 
 # Need to treat last site differently
 if ((L-1) % 2 == 0):
-	V_last = helpers.V_odd_last
-else:
 	V_last = helpers.V_even_last
+else:
+	V_last = helpers.V_odd_last
+
+# Calculate initial expectation values of |a|
+for r in range(0, L):
+	a_avg[r,0] = np.trace(np.dot(sim.Single_Site_Rho(r), helpers.a))
 
 # Loop: do all the odds, then evens, then odds
-for i in range(0, N):
+for i in range(1, N+1):
 	# Evolve odd links delta * t / 2
 	for h in range(0, L-1):
 		if h % 2 == 1:
 			sim.Update(V_odd, h)
-		if ((L-1) % 2 == 1):
-			sim.Update(V_last, L-2)
+	if ((L-1) % 2 == 1):
+		sim.Update(V_last, L-2)	
 	# Evolve even links delta * t
 	for j in range(0, L-1):
 		if j % 2 == 0:
 			sim.Update(V_even, j)
-		if ((L-1) % 2 == 0):
-			sim.Update(V_last, L-2)
+	if ((L-1) % 2 == 0):
+		sim.Update(V_last, L-2)	
 	# Evolve odd links delta * t / 2
 	for k in range(0, L-1):
 		if k % 2 == 1:
 			sim.Update(V_odd, k)
-		if ((L-1) % 2 == 0):
-			sim.Update(V_last, L-2)
+	if ((L-1) % 2 == 1):
+		sim.Update(V_last, L-2)	
 	
 	# Calculate expectation values of |a|
 	for r in range(0, L):
@@ -86,12 +90,12 @@ f.close()
 # for r in range(0, L):
 # 	n_avg[r] = np.trace(np.dot(sim.Single_Site_Rho(r), helpers.n_op))
 
-plt.figure()
 for i in range(0, L):
-	plt.plot(np.arange(0, N*delta, delta), np.absolute(a_avg[i,:]), label="site {0}".format(i))
-plt.legend()
-plt.title(r"TEBD simulation: $L = {0}$, $d = {1}$, $\chi = {2}$".format(L,d,chi))
-plt.xlabel(r"t ($\hbar/U$)")
-plt.ylabel(r"$\langle a(t) \rangle$")
-plt.savefig(filename + "_a.pdf", format="pdf")
+	plt.figure()
+	plt.plot(np.arange(0, (N+1)*delta, delta), np.absolute(a_avg[i,:]), label="site {0}".format(i))
+	plt.legend()
+	plt.title(r"TEBD simulation: $L = {0}$, $d = {1}$, $\chi = {2}$".format(L,d,chi))
+	plt.xlabel(r"t ($\hbar/J$)")
+	plt.ylabel(r"$\langle a(t) \rangle$")
+# plt.savefig(filename + "_a.pdf", format="pdf")
 plt.show()

@@ -2,13 +2,13 @@ import numpy as np
 import math
 
 # Model parameters:
-J = 0; U = 1;
+J = 0; U = 20.0;
 
 # Simulation parameters:
 # d = Number cutoff, chi = Entanglement cutoff,
 # L = Number of sites
 # Note: need chi > d!!!
-d = 7; chi = 50; L = 5; delta = 0.01; N = 1000;
+d = 8; chi = 50; L = 8; delta = 0.001; N = 300;
 
 # Class for handling the Lambda, Gamma, and Theta tensors
 class TensorGroup(object):
@@ -252,7 +252,7 @@ n_op = np.dot(a_dag, a)
 # Build two site Hamiltonian:
 H_2site = -J * (np.kron(a_dag, a) + np.kron(a, a_dag)) + (U / 2) * np.kron(np.dot(n_op, n_op - np.identity(d)), np.identity(d))
 # Need to treat the last link differently...
-H_last = (U/2) * np.kron(np.identity(d), np.dot(n_op, n_op - np.identity(d)))
+H_last = (U / 2) * np.kron(np.identity(d), np.dot(n_op, n_op - np.identity(d)))
 # Diagonalize 
 w,v = np.linalg.eig(H_2site)
 V_odd = np.reshape(np.dot(np.dot(v,np.diag(np.exp(-1j*delta*(w) / 2))), np.transpose(v)), (d,d,d,d))
