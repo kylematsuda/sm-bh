@@ -8,7 +8,7 @@ J = 0; U = 20.0;
 # d = Number cutoff, chi = Entanglement cutoff,
 # L = Number of sites
 # Note: need chi > d!!!
-d = 8; chi = 50; L = 8; delta = 0.001; N = 300;
+d = 8; chi = 50; L = 8; delta = 0.01; N = 10;
 
 # Class for handling the Lambda, Gamma, and Theta tensors
 class TensorGroup(object):
@@ -81,9 +81,11 @@ class TensorGroup(object):
 			A = np.reshape(A[:, 0:chi], (d, chi, chi))
 			Gamma_l_new = A
 			self.Gamma[l] = Gamma_l_new
+
 			# Gamma_(l+1):
 			C = np.reshape(C[:, 0:chi], (d, chi, chi))
-			Gamma_lp1_new = C
+			# Needed to correct the order of indices
+			Gamma_lp1_new = np.transpose(C, (0,2,1))
 			self.Gamma[l+1] = Gamma_lp1_new
 
 		# The Gamma_0 tensor has one less index... need to treat slightly differently
@@ -109,8 +111,9 @@ class TensorGroup(object):
 			# is smaller than in the non-edge cases
 			self.Gamma[l][:,0:d] = A
 			# Treat the l = 1 case normally...
-			C = np.reshape(C[:,0:chi], (d, chi, chi))
-			Gamma_lp1_new = C
+			C = np.reshape(C[:, 0:chi], (d, chi, chi))
+			# Needed to correct the order of indices
+			Gamma_lp1_new = np.transpose(C, (0,2,1))
 			self.Gamma[l+1] = Gamma_lp1_new
 
 		elif (l == L - 2):
@@ -134,6 +137,7 @@ class TensorGroup(object):
 			A = np.reshape(A[:,0:chi], (d, chi, chi))
 			Gamma_l_new = A
 			self.Gamma[l] = Gamma_l_new
+
 			# Gamma_(L-1):
 			# Note: can't truncate because the matrix
 			# is smaller than in the non-edge cases
