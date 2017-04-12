@@ -1,13 +1,23 @@
 import numpy as np
 import math
 import helpers
+import datetime
+from matplotlib import pyplot as plt
+
+# Open a file for saving results
+filename = datetime.datetime.now().strftime("%m_%d_%H_%M_%S")
+f = open(filename + ".txt", 'w')
 
 # Get simulation and model parameters
 d = helpers.d; chi = helpers.chi; L = helpers.L; delta = helpers.delta; N = helpers.N
 J = helpers.J; U = helpers.U;
+f.write("d = {0}, chi = {1}, L = {2}, delta = {3}, N = {4}\n".format(d, chi, L, delta, N))
+f.write("J = {0}, U = {1}\n".format(J, U))
 
 # Choose your initial state:
-occupation = 1.2; state_flag = 0;
+# state_flag = 0 for Fock states, = 1 for coherent states
+occupation = 0.7; state_flag = 1;
+f.write("occupation = {0}, state_flag = {1}\n".format(occupation, state_flag))
 
 # Initialize the state, and the various tensors we need:
 init = helpers.Initialize_States(L, d, occupation, state_flag)
@@ -20,6 +30,9 @@ V_even = helpers.V_even
 # therefore need separate unitaries
 V_odd_last = helpers.V_odd_last
 V_even_last = helpers.V_even_last
+
+# Array to hold expectation values
+a_avg = np.zeros((L, N), dtype=np.complex64)
 
 # Loop: do all the odds, then evens, then odds
 for i in range(0, N):
@@ -44,22 +57,38 @@ for i in range(0, N):
 				sim.Update(V_odd_last, k)
 			else:
 				sim.Update(V_odd, k)
+	
+	# Calculate expectation values of |a|
+	for r in range(0, L):
+		a_avg[r,i] = np.trace(np.dot(sim.Single_Site_Rho(r), helpers.a))
+
+	if (i % 50 == 0):
+		print "step {0} done".format(i)
+
+
 
 # Print error accumulated
-print sim.tau
+f.write("error = {0}".format(sim.tau))
+# Close file
+f.close()
 
-# Calculate expectation values of a
-# Superfluid order parameter
-a_avg = np.zeros(L, dtype=np.complex64)
-for r in range(0, L):
-	a_avg[r] = np.trace(np.dot(sim.Single_Site_Rho(r), helpers.a))
+# # Calculate expectation values of a
+# # Superfluid order parameter
+# a_avg = np.zeros(L, dtype=np.complex64)
+# for r in range(0, L):
+# 	a_avg[r] = np.trace(np.dot(sim.Single_Site_Rho(r), helpers.a))
 
-# Calculate expectation values of n
-n_avg = np.zeros(L)
-for r in range(0, L):
-	n_avg[r] = np.trace(np.dot(sim.Single_Site_Rho(r), helpers.n_op))
+# # Calculate expectation values of n
+# n_avg = np.zeros(L)
+# for r in range(0, L):
+# 	n_avg[r] = np.trace(np.dot(sim.Single_Site_Rho(r), helpers.n_op))
 
-print a_avg
-print n_avg
-# Print mean value of |<a>| = |Psi|
-print (np.linalg.norm(np.absolute(a_avg))**2)/L
+plt.figure()
+for i in range(0, L):
+	plt.plot(np.arange(0, N*delta, delta), np.absolute(a_avg[i,:]), label="site {0}".format(i))
+plt.legend()
+plt.title(r"TEBD simulation: $L = {0}$, $d = {1}$, $\chi = {2}$".format(L,d,chi))
+plt.xlabel(r"t ($\hbar/U$)")
+plt.ylabel(r"$\langle a(t) \rangle$")
+plt.savefig(filename + "_a.pdf", format="pdf")
+plt.show()

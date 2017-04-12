@@ -2,13 +2,13 @@ import numpy as np
 import math
 
 # Model parameters:
-J = 1; U = 0 * J;
+J = 0; U = 1;
 
 # Simulation parameters:
 # d = Number cutoff, chi = Entanglement cutoff,
 # L = Number of sites
 # Note: need chi > d!!!
-d = 5; chi = 50; L = 10; delta = 0.01 / J; N = 50;
+d = 7; chi = 50; L = 5; delta = 0.01; N = 1000;
 
 # Class for handling the Lambda, Gamma, and Theta tensors
 class TensorGroup(object):
