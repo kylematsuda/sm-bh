@@ -53,21 +53,21 @@ class TEBD(object):
 				if h % 2 == 1:
 					self.Update(V_odd, h)
 			if ((L-1) % 2 == 1):
-				self.Update(V_last, L-2)	
+				self.Update_1site(V_last, L-1)	
 			
 			# Evolve even links delta * t
 			for j in range(0, L-1):
 				if j % 2 == 0:
 					self.Update(V_even, j)
 			if ((L-1) % 2 == 0):
-				self.Update(V_last, L-2)	
+				self.Update_1site(V_last, L-1)	
 			
 			# Evolve odd links delta * t / 2
 			for k in range(0, L-1):
 				if k % 2 == 1:
 					self.Update(V_odd, k)
 			if ((L-1) % 2 == 1):
-				self.Update(V_last, L-2)	
+				self.Update_1site(V_last, L-1)	
 			
 			# Log data:
 			if (logs['rho'] and i % (logs['skip'] + 1) == 0):
@@ -225,6 +225,12 @@ class TEBD(object):
 			# is smaller than in the non-edge cases
 			self.Gamma[l+1][:,0:d] = C
 
+	# Update from applying a single-site operator.
+	# In practice, this will only be used for
+	# the on-site term for the final site.
+	def Update_1site(self, V, l):
+		self.Gamma[l] = np.tensordot(V, self.Gamma[l], axes=(0,0))
+
 	# Calculate the reduced density matrix,
 	# tracing over all sites except site k
 	# See Mishmash thesis for derivation
@@ -277,7 +283,8 @@ class Operators(object):
 		# Build two site Hamiltonian:
 		H_2site = -J * (np.kron(a_dag, a) + np.kron(a, a_dag)) + (U / 2) * np.kron(np.dot(n_op, n_op - np.identity(d)), np.identity(d))
 		# Need to treat the last link differently...
-		H_last = (U / 2) * np.kron(np.identity(d), np.dot(n_op, n_op - np.identity(d)))
+		# Use as a single-site operator
+		H_last = (U / 2) * np.dot(n_op, n_op - np.identity(d))
 		# Diagonalize 
 		w,v = np.linalg.eig(H_2site)
 		self.V_odd = np.reshape(np.dot(np.dot(v,np.diag(np.exp(-1j*delta*(w) / 2))), np.transpose(v)), (d,d,d,d))
@@ -285,9 +292,9 @@ class Operators(object):
 		# Same thing for last site
 		wp, vp = np.linalg.eig(H_last)
 		if ((sim['L'] - 1) % 2 == 0):
-			self.V_last = np.reshape(np.dot(np.dot(vp,np.diag(np.exp(-1j*delta*(wp)))), np.transpose(vp)), (d,d,d,d))
+			self.V_last = np.dot(np.dot(vp,np.diag(np.exp(-1j*delta*(wp)))), np.transpose(vp))
 		else:
-			self.V_last = np.reshape(np.dot(np.dot(vp,np.diag(np.exp(-1j*delta*(wp) / 2))), np.transpose(vp)), (d,d,d,d))
+			self.V_last = np.dot(np.dot(vp,np.diag(np.exp(-1j*delta*(wp) / 2))), np.transpose(vp))
 
 
 # Helper functions for initialization:

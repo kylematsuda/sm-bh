@@ -9,7 +9,7 @@ filename = datetime.datetime.now().strftime("%m_%d_%H_%M_%S")
 f = open(filename + ".txt", 'w')
 
 # Simulation and model parameters
-model = {'J': 1.0, 'U': 20.0}
+model = {'J': 0.0, 'U': 20.0}
 sim = {'d': 8, 'chi': 50, 'L': 10, 'delta': 0.01, 'N': 100}
 
 # Choose which expectation values to log:
