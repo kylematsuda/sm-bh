@@ -39,7 +39,7 @@ class TEBD(object):
 		a_op = ops.a
 		a_dag = ops.a_dag
 		n_op = ops.n_op
-		V_last_2 = ops.V_last_2
+		V_last = ops.V_last
 
 		# Create arrays to hold data
 		# and store initial values
@@ -51,7 +51,7 @@ class TEBD(object):
 				self.a_avg[r,0] = np.trace(np.dot(self.Single_Site_Rho(r), a_op))
 		if (logs['n']):
 			for r in range(0, L):
-				self.n_avg[r,0] = np.trace(np.dot(self.Single_Site_Rho(r), n_op))
+				self.n_avg[r,0] = np.real(np.trace(np.dot(self.Single_Site_Rho(r), n_op)))
 
 		if (it and logs['aa']):
 			for l in range(0, L):
@@ -70,24 +70,21 @@ class TEBD(object):
 					if h % 2 == 1:
 						self.Update(V_odd, h)
 				if (L-1) % 2 == 1:
-					# self.Update_1site(V_last, L-1)
-					self.Update(V_last_2, L-2)		
+					self.Update(V_last, L-2)		
 				
 				# Evolve even links delta * t
 				for j in range(0, L-1):
 					if j % 2 == 0:
 						self.Update(V_even, j)
 				if (L-1) % 2 == 0:
-					# self.Update_1site(V_last, L-1)
-					self.Update(V_last_2, L-2)	
+					self.Update(V_last, L-2)	
 				
 				# Evolve odd links delta * t / 2
 				for k in range(0, L-1):
 					if k % 2 == 1:
 						self.Update(V_odd, k)
 				if (L-1) % 2 == 1:
-					# self.Update_1site(V_last, L-1)
-					self.Update(V_last_2, L-2)
+					self.Update(V_last, L-2)
 			else:
 				# Evolve odd links delta * t / 2
 				for h in range(0, L-1):
@@ -99,14 +96,12 @@ class TEBD(object):
 						print ('id', h, np.trace(self.Single_Site_Rho(h)))
 
 				if ((L-1) % 2 == 1):
-					# self.Update_1site(V_last, L-1)
-					self.Update(V_last_2, L-2)
+					self.Update(V_last, L-2)
 					print ('v', L-1, np.trace(self.Single_Site_Rho(L-1)))
 				
 				# Evolve even links delta * t
 				if ((L-1) % 2 == 0):
-					# self.Update_1site(V_last, L-1)
-					self.Update(V_last_2, L-2)
+					self.Update(V_last, L-2)
 					print ('v', L-1, np.trace(self.Single_Site_Rho(L-1)))
 
 				for j in np.arange(L-2, -1, -1):
@@ -123,8 +118,7 @@ class TEBD(object):
 					else:
 						self.Update(np.reshape(np.identity(d*d), (d,d,d,d)), j)
 				if (L-1) % 2 == 0:
-					# self.Update_1site(V_last, L-1)
-					self.Update(V_last_2, L-2)	
+					self.Update(V_last, L-2)	
 				
 				# Evolve odd links delta * t / 2
 				for k in range(L-2, -1, -1):
@@ -133,8 +127,7 @@ class TEBD(object):
 					else:
 						self.Update(np.reshape(np.identity(d**2), (d,d,d,d)), k)
 				if ((L-1) % 2 == 1):
-					# self.Update_1site(V_last, L-1)
-					self.Update(V_last_2, L-2)
+					self.Update(V_last, L-2)
 			
 			# Log data:
 			if (not it):
@@ -150,9 +143,8 @@ class TEBD(object):
 					if (logs['n']):
 						# Store expectation values of n
 						for r in range(0, L):
-							self.n_avg[r,i] = np.trace(np.dot(self.Single_Site_Rho(r), n_op))
+							self.n_avg[r,i] = np.real(np.trace(np.dot(self.Single_Site_Rho(r), n_op)))
 
-			print "step {0}".format(i)
 			# Can delete this later:
 			if (i % 50 == 0):
 				print "step {0} done".format(i)
@@ -176,7 +168,7 @@ class TEBD(object):
 			if (logs['n']):
 				# Store expectation values of n
 				for r in range(0, L):
-					self.n_avg[r,-1] = np.trace(np.dot(self.Single_Site_Rho(r), n_op))
+					self.n_avg[r,-1] = np.real(np.trace(np.dot(self.Single_Site_Rho(r), n_op)))
 			if (logs['aa']):
 				for l in range(0, L):
 					for k in range(l+1, L):
@@ -185,8 +177,7 @@ class TEBD(object):
 						self.aa[k,l] = self.aa[l,k]
 					# Diagonal terms are number expectation values
 					self.aa[l,l] = np.trace(np.dot(self.Single_Site_Rho(l), n_op))
-		print np.trace(self.Single_Site_Rho(0))
-
+	
 	# Build the Theta tensor
 	def Build_Theta(self, l):
 		chi = self.sim['chi']
@@ -240,7 +231,6 @@ class TEBD(object):
 		if (l != 0 and l != L - 2):
 			# Reshape to a square matrix and do singular value decomposition:
 			Theta = np.reshape(np.transpose(Theta, (0,2,1,3)), (d*chi, d*chi))
-			print (l, np.linalg.norm(Theta))
 			Theta *= 1 / np.linalg.norm(np.absolute(Theta))
 			# A and transpose.C contain the new Gamma[l] and Gamma[l+1]
 			# B contains new Lambda[l]
@@ -270,7 +260,6 @@ class TEBD(object):
 		elif (l == 0):
 			# Reshape to a square matrix and do singular value decomposition:
 			Theta = np.reshape(Theta, (d, d*chi))
-			print (l, np.linalg.norm(Theta))
 			Theta *= 1 / np.linalg.norm(np.absolute(Theta))
 			# A and transpose.C contain the new Gamma[l] and Gamma[l+1]
 			# B contains new Lambda[l]
@@ -303,7 +292,6 @@ class TEBD(object):
 		elif (l == L - 2):
 			# Reshape to a square matrix and do singular value decomposition:
 			Theta = np.reshape(np.transpose(Theta, (0,2,1)), (d*chi, d))
-			print (l, np.linalg.norm(Theta))
 			Theta *= 1 / np.linalg.norm(np.absolute(Theta))
 			# A and transpose.C contain the new Gamma[l] and Gamma[l+1]
 			# B contains new Lambda[l]
@@ -333,12 +321,6 @@ class TEBD(object):
 			# Note: can't truncate because the matrix
 			# is smaller than in the non-edge cases
 			self.Gamma[l+1][:,0:d] = C
-
-	# Update from applying a single-site operator.
-	# In practice, this will only be used for
-	# the on-site term for the final site.
-	def Update_1site(self, V, l):
-		self.Gamma[l] = np.tensordot(V, self.Gamma[l], axes=(0,0))
 
 	# Calculate the reduced density matrix,
 	# tracing over all sites except site k
@@ -453,9 +435,6 @@ class Operators(object):
 			mu = 0
 		# Build two site Hamiltonian:
 		H_2site = -J * (np.kron(a_dag, a) + np.kron(a, a_dag)) + (U / 2) * np.kron(np.dot(n_op, n_op - np.identity(d)), np.identity(d)) - mu * np.kron(n_op, np.identity(d))
-		# Need to treat the last link differently...
-		# Use as a single-site operator
-		H_last = (U / 2) * np.dot(n_op, n_op - np.identity(d)) - mu * n_op
 		# Diagonalize 
 		w,v = np.linalg.eigh(H_2site)
 		# Check if we are looking at tau = it evolution to find ground state:
@@ -468,30 +447,18 @@ class Operators(object):
 			self.V_odd = np.reshape(np.dot(np.dot(v,np.diag(np.exp(-delta*(w) / 2))), np.transpose(v)), (d,d,d,d))
 			self.V_even = np.reshape(np.dot(np.dot(v,np.diag(np.exp(-delta*(w) / 2))), np.transpose(v)), (d,d,d,d))
 		# Same thing for last site
+		H_last = np.kron(np.identity(d), (U/2) * np.dot(n_op, n_op - np.identity(d))) - np.kron(np.identity(d), mu * n_op)
 		wp, vp = np.linalg.eigh(H_last)
 		if ((sim['L'] - 1) % 2 == 0):
 			if (not sim['it']):
-				self.V_last = np.dot(np.dot(vp,np.diag(np.exp(-1j*delta*(wp)))), np.transpose(vp))
+				self.V_last = np.reshape(np.dot(np.dot(vp,np.diag(np.exp(- 1j * delta*(wp) ))), np.transpose(vp)), (d,d,d,d))
 			else:
-				self.V_last = np.dot(np.dot(vp,np.diag(np.exp(-delta*(wp) / 2))), np.transpose(vp))
-		else:
-			if (not sim['it']):
-				self.V_last = np.dot(np.dot(vp,np.diag(np.exp(-1j*delta*(wp) / 2))), np.transpose(vp))
-			else:
-				self.V_last = np.dot(np.dot(vp,np.diag(np.exp(-delta*(wp) / 2))), np.transpose(vp))
-
-		H_last_2 = np.kron(np.identity(d), (U/2) * np.dot(n_op, n_op - np.identity(d))) - np.kron(np.identity(d), mu * n_op)
-		wpp, vpp = np.linalg.eigh(H_last_2)
-		if ((sim['L'] - 1) % 2 == 0):
-			if (not sim['it']):
-				self.V_last_2 = np.reshape(np.dot(np.dot(vpp,np.diag(np.exp(- 1j * delta*(wpp) ))), np.transpose(vpp)), (d,d,d,d))
-			else:
-				self.V_last_2 = np.reshape(np.dot(np.dot(vpp,np.diag(np.exp(- delta*(wpp)/2 ))), np.transpose(vpp)), (d,d,d,d))
+				self.V_last = np.reshape(np.dot(np.dot(vpp,np.diag(np.exp(- delta*(wp)/2 ))), np.transpose(vp)), (d,d,d,d))
 		else:	
 			if (not sim['it']):
-				self.V_last_2 = np.reshape(np.dot(np.dot(vpp,np.diag(np.exp(- 1j * delta*(wpp) / 2))), np.transpose(vpp)), (d,d,d,d))
+				self.V_last = np.reshape(np.dot(np.dot(vp,np.diag(np.exp(- 1j * delta*(wp) / 2))), np.transpose(vp)), (d,d,d,d))
 			else:
-				self.V_last_2 = np.reshape(np.dot(np.dot(vpp,np.diag(np.exp(- delta*(wpp)/2))), np.transpose(vpp)), (d,d,d,d))
+				self.V_last = np.reshape(np.dot(np.dot(vp,np.diag(np.exp(- delta*(wp)/2))), np.transpose(vp)), (d,d,d,d))
 
 # Helper functions for initialization:
 
