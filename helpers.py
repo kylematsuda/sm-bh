@@ -447,7 +447,7 @@ class Operators(object):
 			self.V_odd = np.reshape(np.dot(np.dot(v,np.diag(np.exp(-delta*(w) / 2))), np.transpose(v)), (d,d,d,d))
 			self.V_even = np.reshape(np.dot(np.dot(v,np.diag(np.exp(-delta*(w) / 2))), np.transpose(v)), (d,d,d,d))
 		# Same thing for last site
-		H_last = np.kron(np.identity(d), (U/2) * np.dot(n_op, n_op - np.identity(d))) - np.kron(np.identity(d), mu * n_op)
+		H_last = (U/2) * np.kron(np.identity(d), np.dot(n_op, n_op - np.identity(d))) - mu * np.kron(np.identity(d), n_op)
 		wp, vp = np.linalg.eigh(H_last)
 		if ((sim['L'] - 1) % 2 == 0):
 			if (not sim['it']):

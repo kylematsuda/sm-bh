@@ -9,7 +9,7 @@ model = {'J': 1.0, 'U': 1.0}
 # Note: set 'it' == True to find ground state, False to calculate real time evolution
 # If doing imaginary time evolution, we need to add in a chemical potential term to conserve number
 # mu is in units of U
-sim = {'d': 8, 'chi': 50, 'L': 6, 'delta': 0.01, 'N': 500, 'it': False, 'mu': 0.5}
+sim = {'d': 8, 'chi': 50, 'L': 6, 'delta': 0.01, 'N': 50, 'it': False, 'mu': 0.5}
 
 # Choose which expectation values to log:
 # Skip: how many iterations to skip between logging expectation values

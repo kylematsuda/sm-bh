@@ -2,7 +2,7 @@ import numpy as np
 import math
 
 # Cutoff for division by small numbers
-cutoff = 1E-6
+cutoff = 1E-2
 
 # Class for handling the Lambda, Gamma, and Theta tensors
 class TEBD(object):
@@ -51,16 +51,16 @@ class TEBD(object):
 				self.rhos[r,0] = self.Single_Site_Rho(r)
 		if (logs['a']):
 			for r in range(0, L):
-				self.a_avg[r,0] = np.trace(np.dot(self.Single_Site_Rho(r), a_op))
+				self.a_avg[r,0] = np.trace(np.dot(self.Single_Site_Rho(r,'a'), a_op))
 		if (logs['b']):
 			for r in range(0, L):
-				self.b_avg[r,0] = np.trace(np.dot(self.Single_Site_Rho(r), b_op))
+				self.b_avg[r,0] = np.trace(np.dot(self.Single_Site_Rho(r,'b'), b_op))
 		if (logs['na']):
 			for r in range(0, L):
-				self.n_a_avg[r,0] = np.real(np.trace(np.dot(self.Single_Site_Rho(r), n_a)))
+				self.n_a_avg[r,0] = np.real(np.trace(np.dot(self.Single_Site_Rho(r,'a'), n_a)))
 		if (logs['nb']):
 			for r in range(0, L):
-				self.n_b_avg[r,0] = np.real(np.trace(np.dot(self.Single_Site_Rho(r), n_b)))
+				self.n_b_avg[r,0] = np.real(np.trace(np.dot(self.Single_Site_Rho(r,'b'), n_b)))
 
 		# # Loop: do all the odds, then evens, then odds
 		for i in range(1, N+1):
@@ -69,44 +69,44 @@ class TEBD(object):
 				if h % 2 == 1:
 					self.Update(V_odd, h)
 			if ((L-1) % 2 == 1):
-				self.Update_1site(V_last, L-1)	
+				self.Update(V_last, L-2)	
 			
 			# Evolve even links delta * t
 			for j in range(0, L-1):
 				if j % 2 == 0:
 					self.Update(V_even, j)
 			if ((L-1) % 2 == 0):
-				self.Update_1site(V_last, L-1)	
+				self.Update(V_last, L-2)	
 			
 			# Evolve odd links delta * t / 2
 			for k in range(0, L-1):
 				if k % 2 == 1:
 					self.Update(V_odd, k)
 			if ((L-1) % 2 == 1):
-				self.Update_1site(V_last, L-1)	
+				self.Update(V_last, L-2)	
 			
 			# Log data:
 			if (i % (logs['skip'] + 1) == 0):
 				if (logs['rho']):
-					# Store single particle density matrices
+					# Store single site density matrices
 					for r in range(0, L):
 						self.rhos[r,i] = self.Single_Site_Rho(r)
 				if (logs['a']):
 					# Store expectation values of a
 					for r in range(0, L):
-						self.a_avg[r,i] = np.trace(np.dot(self.Single_Site_Rho(r), a_op))
+						self.a_avg[r,i] = np.trace(np.dot(self.Single_Site_Rho(r,'a'), a_op))
 				if (logs['b']):
 					# Store expectation values of b
 					for r in range(0, L):
-						self.b_avg[r,i] = np.trace(np.dot(self.Single_Site_Rho(r), b_op))
+						self.b_avg[r,i] = np.trace(np.dot(self.Single_Site_Rho(r,'b'), b_op))
 				if (logs['na']):
-					# Store expectation values of n
+					# Store expectation values of n_a
 					for r in range(0, L):
-						self.n_a_avg[r,i] = np.real(np.trace(np.dot(self.Single_Site_Rho(r), n_a)))
+						self.n_a_avg[r,i] = np.real(np.trace(np.dot(self.Single_Site_Rho(r,'a'), n_a)))
 				if (logs['nb']):
 					# Store expectation values of n
 					for r in range(0, L):
-						self.n_b_avg[r,i] = np.real(np.trace(np.dot(self.Single_Site_Rho(r), n_b)))
+						self.n_b_avg[r,i] = np.real(np.trace(np.dot(self.Single_Site_Rho(r,'b'), n_b)))
 				
 				# Only store SPDM at the very end
 				# Probably only want to do this for calculating GS
@@ -116,7 +116,7 @@ class TEBD(object):
 							# Calculate <a^dag_k, a_l>
 							self.aa[l,k] = np.trace(np.dot(np.reshape(self.Two_Site_Rho(l, k), (d*d, d*d)), np.kron(a_op, a_dag)))
 						# Diagonal terms are number expectation values
-						self.aa[l,l] =np.trace(np.dot(self.Single_Site_Rho(l), n_op))
+						self.aa[l,l] =np.trace(np.dot(self.Single_Site_Rho(l,'a'), n_op))
 
 			# Can delete this later:
 			if (i % 50 == 0):
@@ -163,7 +163,7 @@ class TEBD(object):
 	# instead of [1, ..., L] as shown in the thesis.
 	def Update(self, V, l):
 		d = self.sim['d']; L = self.sim['L'];
-		chi = self.sim['chi']; delta = self.sim['delta']
+		chi = self.sim['chi']; delta = self.sim['delta'];
 
 		# Build the appropriate Theta tensor
 		Theta = self.Build_Theta(l)
@@ -174,17 +174,19 @@ class TEBD(object):
 		if (l != 0 and l != L - 2):
 			# Reshape to a square matrix and do singular value decomposition:
 			Theta = np.reshape(np.transpose(Theta, (0,2,1,3)), (d*chi, d*chi))
-			Theta = Theta / np.linalg.norm(Theta)
+			Theta *= 1 / np.linalg.norm(np.absolute(Theta))
 			# A and transpose.C contain the new Gamma[l] and Gamma[l+1]
 			# B contains new Lambda[l]
 			A, B, C = np.linalg.svd(Theta)
 			C = np.transpose(C)
 
 			# Truncate at chi eigenvalues and enforce normalization
-			self.Lambda[l,:] = B[0:chi] / np.linalg.norm(B[0:chi])
+			norm = np.linalg.norm(B[0:chi])
+			B = B / norm
+			self.Lambda[l,:] = B[0:chi]
 
 			# Keep track of the truncation error accumulated on this step
-			self.tau += delta * (1 - np.linalg.norm(B[0:chi])**2)
+			self.tau += delta * (1 - norm**2)
 
 			# Find the new Gammas:
 			# Gamma_l:
@@ -201,7 +203,7 @@ class TEBD(object):
 		elif (l == 0):
 			# Reshape to a square matrix and do singular value decomposition:
 			Theta = np.reshape(Theta, (d, d*chi))
-			Theta = Theta / np.linalg.norm(Theta)
+			Theta *= 1 / np.linalg.norm(np.absolute(Theta))
 			# A and transpose.C contain the new Gamma[l] and Gamma[l+1]
 			# B contains new Lambda[l]
 			A, B, C = np.linalg.svd(Theta)
@@ -210,10 +212,12 @@ class TEBD(object):
 			# Enforce normalization
 			# Don't need to truncate here because chi is bounded by
 			# the dimension of the smaller subsystem, here equals d < chi
-			self.Lambda[l,0:d] = B / np.linalg.norm(B)
+			norm = np.linalg.norm(B)
+			B = B / norm
+			self.Lambda[l,0:d] = B
 
 			# Keep track of the truncation error accumulated on this step
-			self.tau += delta * (1 - np.linalg.norm(B)**2)
+			self.tau += delta * (1 - norm**2)
 
 			# Find the new Gammas:
 			# Gamma_l:
@@ -231,7 +235,7 @@ class TEBD(object):
 		elif (l == L - 2):
 			# Reshape to a square matrix and do singular value decomposition:
 			Theta = np.reshape(np.transpose(Theta, (0,2,1)), (d*chi, d))
-			Theta = Theta / np.linalg.norm(Theta)
+			Theta *= 1 / np.linalg.norm(np.absolute(Theta))
 			# A and transpose.C contain the new Gamma[l] and Gamma[l+1]
 			# B contains new Lambda[l]
 			A, B, C = np.linalg.svd(Theta)
@@ -240,10 +244,12 @@ class TEBD(object):
 			# Enforce normalization
 			# Don't need to truncate here because chi is bounded by
 			# the dimension of the smaller subsystem, here equals d < chi
-			self.Lambda[l,0:d] = B / np.linalg.norm(B)
+			norm = np.linalg.norm(B)
+			B = B / norm
+			self.Lambda[l,0:d] = B
 
 			# Keep track of the truncation error accumulated on this step
-			self.tau += delta * (1 - np.linalg.norm(B)**2)
+			self.tau += delta * (1 - norm**2)
 
 			# Find the new Gammas:
 			# Treat the L-2 case normally:
@@ -259,17 +265,15 @@ class TEBD(object):
 			# is smaller than in the non-edge cases
 			self.Gamma[l+1][:,0:d] = C
 
-	# Update from applying a single-site operator.
-	# In practice, this will only be used for
-	# the on-site term for the final site.
-	def Update_1site(self, V, l):
-		self.Gamma[l] = np.tensordot(V, self.Gamma[l], axes=(0,0))
-
 	# Calculate the reduced density matrix,
 	# tracing over all sites except site k
+	# subspace = 'a': majority species
+	# subspace = 'b': minority species
 	# See Mishmash thesis for derivation
-	def Single_Site_Rho(self, k):
+	def Single_Site_Rho(self, k, subspace=0):
 		L = self.sim['L']
+		da = self.sim['da']
+		db = self.sim['db']
 
 		Gamma_k = self.Gamma[k]
 		# Need to treat boundaries differently...
@@ -291,6 +295,15 @@ class TEBD(object):
 			Rho_R = np.tensordot(np.diag(self.Lambda[k-1,:]), Gamma_k, axes=(-1, -1))
 			Rho = np.tensordot(Rho_L, Rho_R, axes=(0,0))
 			Rho = np.transpose(Rho)
+
+		if (subspace == 0):
+			return Rho
+		else:
+			Rho = np.reshape(Rho, (da, db, da, db))
+			if (subspace == 'a'):
+				Rho = np.tensordot(np.identity(db), Rho, axes=([0,1], [1,3]))
+			elif (subspace == 'b'):
+				Rho = np.tensordot(np.identity(da), Rho, axes=([0,1], [0, 2]))
 		return Rho
 
 	# Calculate the reduced density matrix,
@@ -383,18 +396,22 @@ class Operators(object):
 		else:
 			mu = 0
 
-		a = np.kron(a, np.identity(db)); a_dag = np.kron(a_dag, np.identity(db))
-		b = np.kron(np.identity(da), b); b_dag = np.kron(np.identity(da), b_dag)
-		n_a = np.kron(n_a, np.identity(db)); n_b = np.kron(np.identity(da), n_b)
-		n_ab = np.dot(n_a, n_b)
-
+		# Operators saved here are defined in terms of the
+		# base subspaces A and B, not the tensor product!!!
 		self.a = a
 		self.a_dag = a_dag
 		self.n_a = n_a
 		self.b = b
 		self.b_dag = b_dag
-		self.n_ab = n_ab
 		self.n_b = n_b
+
+		a = np.kron(a, np.identity(db)); a_dag = np.kron(a_dag, np.identity(db))
+		b = np.kron(np.identity(da), b); b_dag = np.kron(np.identity(da), b_dag)
+		n_a = np.kron(n_a, np.identity(db)); n_b = np.kron(np.identity(da), n_b)
+		n_ab = np.dot(n_a, n_b)
+
+		# Defined in the tensor product space
+		self.n_ab = n_ab
 
 		# Build two site Hamiltonian:
 		J_2site = -Ja * (np.kron(a_dag, a) + np.kron(a, a_dag)) - Jb * (np.kron(b_dag, b) + np.kron(b, b_dag))
@@ -402,7 +419,7 @@ class Operators(object):
 		H_2site = J_2site + U_2site
 		# Need to treat the last link differently...
 		# Use as a single-site operator
-		H_last = (Ua / 2) * np.dot(n_a, n_a - np.identity(d)) + Uab * n_ab - mu * n_a
+		H_last = (Ua/2) * np.kron(np.identity(d), np.dot(n_a, n_a - np.identity(d))) + Uab * np.kron(np.identity(d), n_ab) - mu * np.kron(np.identity(d), n_a)
 		# Diagonalize 
 		w,v = np.linalg.eig(H_2site)
 		# Check if we are looking at tau = it evolution to find ground state:
@@ -416,14 +433,14 @@ class Operators(object):
 		wp, vp = np.linalg.eig(H_last)
 		if ((sim['L'] - 1) % 2 == 0):
 			if (not sim['it']):
-				self.V_last = np.dot(np.dot(vp,np.diag(np.exp(-1j*delta*(wp)))), np.transpose(vp))
+				self.V_last = np.reshape(np.dot(np.dot(vp,np.diag(np.exp(-1j*delta*(wp)))), np.transpose(vp)), (d,d,d,d))
 			else:
-				self.V_last = np.dot(np.dot(vp,np.diag(np.exp(-delta*(wp)))), np.transpose(vp))
+				self.V_last = np.reshape(np.dot(np.dot(vp,np.diag(np.exp(-delta*(wp)))), np.transpose(vp)), (d,d,d,d))
 		else:
 			if (not sim['it']):
-				self.V_last = np.dot(np.dot(vp,np.diag(np.exp(-1j*delta*(wp) / 2))), np.transpose(vp))
+				self.V_last = np.reshape(np.dot(np.dot(vp,np.diag(np.exp(-1j*delta*(wp) / 2))), np.transpose(vp)), (d,d,d,d))
 			else:
-				self.V_last = np.dot(np.dot(vp,np.diag(np.exp(-delta*(wp) / 2))), np.transpose(vp))
+				self.V_last = np.reshape(np.dot(np.dot(vp,np.diag(np.exp(-delta*(wp) / 2))), np.transpose(vp)), (d,d,d,d))
 
 
 # Helper functions for initialization:
@@ -484,10 +501,15 @@ def Initialize_Impurity(sim, init):
 
 	# Initialize a matrix of zeros
 	mat = np.zeros((L, db), dtype=np.complex64)
+	
 	# Initialize impurity with probability 1 on the chosen site
-	if db == 1:
+	
+	# If Hilbert space dimension = 1, then no impurities
+	# If input -1, then no impurities for convenience
+	if db == 1 or k == -1:
 		mat[:,0] = np.ones(L)
 		return mat
+	# Otherwise initialize the impurity on the chosen site
 	else:
 		for i in range(0, L):
 			if (i == k):
