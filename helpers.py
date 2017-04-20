@@ -2,7 +2,7 @@ import numpy as np
 import math
 
 # Cutoff for division by small numbers
-cutoff = 1E-2
+cutoff = 1E-6
 
 # Class for handling the Lambda, Gamma, and Theta tensors
 class TEBD(object):
@@ -52,8 +52,7 @@ class TEBD(object):
 		if (logs['n']):
 			for r in range(0, L):
 				self.n_avg[r,0] = np.real(np.trace(np.dot(self.Single_Site_Rho(r), n_op)))
-
-		if (it and logs['aa']):
+		if (logs['aa']):
 			for l in range(0, L):
 				for k in range(l+1, L):
 					# Calculate <a^dag_k, a_l>
@@ -132,18 +131,19 @@ class TEBD(object):
 			# Log data:
 			if (not it):
 				if (i % (logs['skip'] + 1) == 0):
+					ind = int(i / (logs['skip'] + 1))
 					if (logs['rho']):
 						# Store single particle density matrices
 						for r in range(0, L):
-							self.rhos[r,i] = self.Single_Site_Rho(r)
+							self.rhos[r,ind] = self.Single_Site_Rho(r)
 					if (logs['a']):
 						# Store expectation values of a
 						for r in range(0, L):
-							self.a_avg[r,i] = np.trace(np.dot(self.Single_Site_Rho(r), a_op))
+							self.a_avg[r,ind] = np.trace(np.dot(self.Single_Site_Rho(r), a_op))
 					if (logs['n']):
 						# Store expectation values of n
 						for r in range(0, L):
-							self.n_avg[r,i] = np.real(np.trace(np.dot(self.Single_Site_Rho(r), n_op)))
+							self.n_avg[r,ind] = np.real(np.trace(np.dot(self.Single_Site_Rho(r), n_op)))
 
 			# Can delete this later:
 			if (i % 50 == 0):
@@ -226,7 +226,7 @@ class TEBD(object):
 		Theta = self.Build_Theta(l)
 		# Apply the unitary matrix V
 		Theta = np.tensordot(V, Theta, axes=([2,3], [0,1]))
-		
+
 		# Need to treat boundary subsystems differently...
 		if (l != 0 and l != L - 2):
 			# Reshape to a square matrix and do singular value decomposition:
@@ -240,7 +240,7 @@ class TEBD(object):
 			# Truncate at chi eigenvalues and enforce normalization
 			norm = np.linalg.norm(B[0:chi])
 			B = B / norm
-			self.Lambda[l,:] = B[0:chi]
+			self.Lambda[l] = B[0:chi]
 
 			# Keep track of the truncation error accumulated on this step
 			self.tau += delta * (1 - norm**2)
@@ -284,6 +284,7 @@ class TEBD(object):
 			# the A tensors instead of the Gamma tensors.
 			# See Quantum Gases: Finite Temperature and Non-Equilibrium Dynamics, pg. 341
 			self.Gamma[l][:, 0:d] = A
+
 			# Treat the l = 1 case normally...
 			C = np.reshape(C[:, 0:chi], (d, chi, chi))
 			Gamma_lp1_new = np.tensordot(C, np.diag(OneOver(self.Lambda[l+1,:])), axes=(-1, 0))
@@ -334,7 +335,7 @@ class TEBD(object):
 		if (k != 0 and k != L - 1):
 			Rho_L = np.tensordot(np.diag(self.Lambda[k-1,:]), np.conjugate(Gamma_k), axes=(1,1))
 			Rho_L = np.tensordot(Rho_L, np.diag(self.Lambda[k,:]), axes=(-1,0))
-			Rho_R = np.tensordot(np.diag(self.Lambda[k,:]), Gamma_k, axes=(1,1))
+			Rho_R = np.tensordot(np.diag(self.Lambda[k-1,:]), Gamma_k, axes=(1,1))
 			Rho_R = np.tensordot(Rho_R, np.diag(self.Lambda[k,:]), axes=(-1,0))
 			Rho = np.tensordot(Rho_L, Rho_R, axes=([0,2],[0,2]))
 			Rho = np.transpose(Rho)
@@ -437,12 +438,11 @@ class Operators(object):
 		H_2site = -J * (np.kron(a_dag, a) + np.kron(a, a_dag)) + (U / 2) * np.kron(np.dot(n_op, n_op - np.identity(d)), np.identity(d)) - mu * np.kron(n_op, np.identity(d))
 		# Diagonalize 
 		w,v = np.linalg.eigh(H_2site)
+		print w
 		# Check if we are looking at tau = it evolution to find ground state:
 		if (not sim['it']):
 			self.V_odd = np.reshape(np.dot(np.dot(v,np.diag(np.exp(-1j*delta*(w) / 2))), np.transpose(v)), (d,d,d,d))
 			self.V_even = np.reshape(np.dot(np.dot(v,np.diag(np.exp(-1j*delta*(w)))), np.transpose(v)), (d,d,d,d))
-			# self.V_odd = np.reshape(np.dot(np.dot(np.transpose(v),np.diag(np.exp(-1j*delta*(w) / 2))), v), (d,d,d,d))
-			# self.V_even = np.reshape(np.dot(np.dot(np.transpose(v),np.diag(np.exp(-1j*delta*(w)))), v), (d,d,d,d))
 		else:
 			self.V_odd = np.reshape(np.dot(np.dot(v,np.diag(np.exp(-delta*(w) / 2))), np.transpose(v)), (d,d,d,d))
 			self.V_even = np.reshape(np.dot(np.dot(v,np.diag(np.exp(-delta*(w) / 2))), np.transpose(v)), (d,d,d,d))
@@ -458,7 +458,7 @@ class Operators(object):
 			if (not sim['it']):
 				self.V_last = np.reshape(np.dot(np.dot(vp,np.diag(np.exp(- 1j * delta*(wp) / 2))), np.transpose(vp)), (d,d,d,d))
 			else:
-				self.V_last = np.reshape(np.dot(np.dot(vp,np.diag(np.exp(- delta*(wp)/2))), np.transpose(vp)), (d,d,d,d))
+				self.V_last = np.reshape(np.dot(np.dot(vp,np.diag(np.exp(- delta*(wp) / 2))), np.transpose(vp)), (d,d,d,d))
 
 # Helper functions for initialization:
 
@@ -474,6 +474,7 @@ def Initialize_States(sim, init):
 	L = sim['L']
 	n_onsite = init['nbar']
 	flag = init['flag']
+	site = init['site']
 
 	# Initialize a matrix of zeros
 	mat = np.zeros((L, n_max), dtype=np.complex64)
@@ -495,8 +496,9 @@ def Initialize_States(sim, init):
 				# Populate next highest state with probability = filling
 				for i in range(0, L):
 					if rands[i] < filling:
-						mat[i,math.floor(n_onsite)+1] = 1
-						mat[i,math.floor(n_onsite)] = 0
+						ind = int(math.floor(n_onsite))
+						mat[i,ind+1] = 1
+						mat[i,ind] = 0
 	# If coherent state
 	elif (flag == 1):
 		# Calculate normalization factor
@@ -507,6 +509,14 @@ def Initialize_States(sim, init):
 		# Build coherent states
 		for i in range(0, n_max):
 			mat[:,i] = math.pow(n_onsite, float(i) / 2) / (np.sqrt(math.factorial(i)) * norm)
+
+	# If want to initialize n_onsite particles on a given site
+	elif (flag == 2):
+		# Check that you're under the number cutoff
+		if (math.floor(n_onsite) < n_max):
+			mat[:, 0] = 1
+			mat[site, 0] = 0
+			mat[site,math.floor(n_onsite)] = 1
 	return mat
 
 # Initialize the coefficient tensors
@@ -542,10 +552,9 @@ def Gamma0(coeffs, sim):
 	Gamma.append(mat)
 	return Gamma
 
-def OneOver(array):
-	for i in range(0, len(array)):
-		if np.abs(array[i]) >= cutoff:
-			array[i] = 1.0 / array[i]
-		else:
-			array[i] = 0
-	return array
+def OneOver(arr):
+	temp = np.zeros(len(arr))
+	for i in range(0, len(arr)):
+		if np.abs(arr[i]) >= cutoff:
+			temp[i] = 1.0 / np.real(arr[i])
+	return temp

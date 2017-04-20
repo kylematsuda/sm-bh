@@ -475,11 +475,13 @@ def Initialize_States(sim, init):
 			if (n_onsite != math.floor(n_onsite)):
 				filling = n_onsite - math.floor(n_onsite)
 				rands = np.random.rand(L)
+				print rands
 				# Populate next highest state with probability = filling
 				for i in range(0, L):
 					if rands[i] < filling:
-						mat[i,math.floor(n_onsite)+1] = 1
-						mat[i,math.floor(n_onsite)] = 0
+						ind = int(math.floor(n_onsite))
+						mat[i,ind+1] = 1
+						mat[i,ind] = 0
 	# If coherent state
 	elif (flag == 1):
 		# Calculate normalization factor
@@ -490,6 +492,7 @@ def Initialize_States(sim, init):
 		# Build coherent states
 		for i in range(0, n_max):
 			mat[:,i] = math.pow(n_onsite, float(i) / 2) / (np.sqrt(math.factorial(i)) * norm)
+	print mat
 	return mat
 
 def Initialize_Impurity(sim, init):

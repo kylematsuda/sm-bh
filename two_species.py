@@ -5,22 +5,22 @@ import datetime
 from matplotlib import pyplot as plt
 
 # Simulation and model parameters
-model = {'Ja': 0.0, 'Ua': 1.0, 'Jb': 0.5, 'Uab': 0.0}
+model = {'Ja': 1.0, 'Ua': 0.0, 'Jb': 0.0, 'Uab': 0.0}
 # Note: set 'it' == True to find ground state, False to calculate real time evolution
 # If doing imaginary time evolution, we need to add in a chemical potential term to conserve number
 # mu is in units of U
-sim = {'da': 4, 'db': 2, 'chi': 60, 'L': 4, 'delta': 0.01, 'N': 100, 'it': False, 'mu': 0.5}
+sim = {'da': 4, 'db': 1, 'chi': 50, 'L': 4, 'delta': 0.001, 'N': 200, 'it': False, 'mu': 0.5}
 # Local Hilbert space dimension: 'da' dimensions for majority, 2 dimensional for minority
 sim['d'] = sim['da'] * sim['db']
 
 # Choose which expectation values to log:
 # Skip: how many iterations to skip between logging expectation values
-logs = {'rho': False, 'a': True, 'b': False, 'na': False, 'nb': True, 'aa': False, 'skip': 0}
+logs = {'rho': False, 'a': True, 'b': False, 'na': True, 'nb': True, 'aa': False, 'skip': 0}
 
 # Choose your initial state:
 # For majority: flag = 0 for Fock states, = 1 for coherent states
 # site = site to initialize impurity on
-init = {'nbar': 0.5, 'flag': 1, 'site': 1};
+init = {'nbar': 0.5, 'flag': 0, 'site': 1};
 
 # Which parameter(s) to sweep?
 sweep_par = ['Ua']
@@ -66,6 +66,8 @@ for i in range(0, len(sweep_range)):
 	f.write("error = {0}".format(simulation.tau))
 	# Close file
 	f.close()
+
+print simulation.n_a_avg[:,0]
 
 a_avg = simulation.a_avg
 print a_avg[:,0]
@@ -113,4 +115,28 @@ plt.tick_params(labelcolor='none', top='off', bottom='off', left='off', right='o
 plt.xlabel(r"t ($\hbar/J_b$)", fontsize=16)
 plt.ylabel(r"$\langle n_b(t) \rangle$", fontsize=16)
 plt.savefig(filename + "_b.pdf", format="pdf")
+
+
+n_a_avg = simulation.n_a_avg
+# Plot stuff
+L = sim['L']; chi = sim['chi']; d = sim['d']; delta = sim['delta']; N = sim['N']
+f, ax = plt.subplots(L, sharex=True, sharey=True)
+for i in range(0, L):
+	ts = np.linspace(0, (N+1)*delta, num=(N+1))
+	ax[i].plot(ts, np.absolute(n_a_avg[i,:]), 'bo', label="TEBD site {0}".format(i))
+	ax[i].set_yticks(np.arange(0,4.5,0.5))
+	ax[i].set_yticklabels(np.arange(0,4.5,0.5))
+	ax[i].set_ylim([-0.1, 4.1])
+ax[0].set_title(r"TEBD simulation: $L = {0}$, $d = {1}$, $\chi = {2}$".format(L,d,chi), fontsize=18)
+f.subplots_adjust(hspace=0)
+plt.setp([a.get_xticklabels() for a in f.axes[:-1]], visible=False)
+
+f.add_subplot(111, frameon=False)
+# hide tick and tick label of the big axes
+plt.tick_params(labelcolor='none', top='off', bottom='off', left='off', right='off')
+
+plt.xlabel(r"t ($\hbar/J_b$)", fontsize=16)
+plt.ylabel(r"$\langle n_a(t) \rangle$", fontsize=16)
+plt.savefig(filename + "_b.pdf", format="pdf")
+plt.show()
 plt.show()
