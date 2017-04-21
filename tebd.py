@@ -5,11 +5,11 @@ import datetime
 from matplotlib import pyplot as plt
 
 # Simulation and model parameters
-model = {'J': 2.0, 'U': 0.0}
+model = {'J': 1.0, 'U': 0.0}
 # Note: set 'it' == True to find ground state, False to calculate real time evolution
 # If doing imaginary time evolution, we need to add in a chemical potential term to conserve number
 # mu is in units of U
-sim = {'d': 4, 'chi': 20, 'L': 4, 'delta': 0.001, 'N': 10, 'it': False, 'mu': 0.5}
+sim = {'d': 4, 'chi': 10, 'L': 3, 'delta': 0.1, 'N': 100, 'it': False, 'mu': 0.5}
 
 # Choose which expectation values to log:
 # Skip: how many iterations to skip between logging expectation values
@@ -19,7 +19,7 @@ logs = {'rho': False, 'a': True, 'n': True, 'aa': True, 'skip': 0}
 # Choose your initial state:
 # state_flag = 0 for Fock states, = 1 for coherent states
 # flag = 2 to initialize on site k
-init = {'nbar': 1, 'flag': 2, 'site': 3};
+init = {'nbar': 1, 'flag': 2, 'site': 1};
 
 # Which parameter(s) to sweep?
 sweep_par = ['U', 'mu']
@@ -49,7 +49,7 @@ for i in range(0, len(sweep_range)):
 	f.write("rho = {0}, a = {1}, n = {2}, skip = {3}\n".format(logs['rho'], logs['a'], logs['n'], logs['skip']))
 
 	# Run the simulation
-	simulation = helpers.TEBD(model, sim, init, logs)
+	simulation = helpers_new.TEBD(model, sim, init, logs)
 	simulation.Run_Simulation()
 
 	spdm = simulation.aa
@@ -106,9 +106,9 @@ f, ax = plt.subplots(L, sharex=True, sharey=True)
 for i in range(0, L):
 	ax[i].plot(ts, np.absolute(n_avg[i,0:indmax]), 'bo', label="TEBD site {0}".format(i))
 	ax[i].legend()
-	ax[i].set_yticks(np.linspace(0,4,num=5))
-	ax[i].set_yticklabels(np.linspace(0,4,num=5))
-	ax[i].set_ylim([-0.1, 4.1])
+	ax[i].set_yticks(np.linspace(0,2,num=5))
+	ax[i].set_yticklabels(np.linspace(0,2,num=5))
+	ax[i].set_ylim([-0.1, 2.1])
 ax[0].set_title(r"TEBD simulation: $L = {0}$, $d = {1}$, $\chi = {2}$".format(L,d,chi), fontsize=18)
 f.subplots_adjust(hspace=0)
 plt.setp([a.get_xticklabels() for a in f.axes[:-1]], visible=False)
