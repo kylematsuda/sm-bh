@@ -49,7 +49,7 @@ for i in range(0, len(sweep_range)):
 	f.write("rho = {0}, a = {1}, n = {2}, skip = {3}\n".format(logs['rho'], logs['a'], logs['n'], logs['skip']))
 
 	# Run the simulation
-	simulation = helpers_new.TEBD(model, sim, init, logs)
+	simulation = helpers.TEBD(model, sim, init, logs)
 	simulation.Run_Simulation()
 
 	spdm = simulation.aa
