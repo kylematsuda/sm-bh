@@ -1,6 +1,6 @@
 import numpy as np
 import math
-import helpers
+import helpers_new2
 import datetime
 from matplotlib import pyplot as plt
 
@@ -9,7 +9,7 @@ model = {'J': 1.0, 'U': 0.0}
 # Note: set 'it' == True to find ground state, False to calculate real time evolution
 # If doing imaginary time evolution, we need to add in a chemical potential term to conserve number
 # mu is in units of U
-sim = {'d': 4, 'chi': 10, 'L': 3, 'delta': 0.1, 'N': 100, 'it': False, 'mu': 0.5}
+sim = {'d': 6, 'chi': 20, 'L': 3, 'delta': 0.1, 'N': 500, 'it': False, 'mu': 0.5}
 
 # Choose which expectation values to log:
 # Skip: how many iterations to skip between logging expectation values
@@ -49,7 +49,7 @@ for i in range(0, len(sweep_range)):
 	f.write("rho = {0}, a = {1}, n = {2}, skip = {3}\n".format(logs['rho'], logs['a'], logs['n'], logs['skip']))
 
 	# Run the simulation
-	simulation = helpers.TEBD(model, sim, init, logs)
+	simulation = helpers_new2.TEBD(model, sim, init, logs)
 	simulation.Run_Simulation()
 
 	spdm = simulation.aa
@@ -68,8 +68,8 @@ for i in range(0, len(sweep_range)):
 
 	print sweep_range[i]
 
-print spdm
-print simulation.a_avg[:,-1]
+# print spdm
+# print simulation.a_avg[:,-1]
 
 a_avg = simulation.a_avg
 # Plot stuff
@@ -81,9 +81,9 @@ for i in range(0, L):
 	ax[i].plot(ts, np.absolute(a_avg[i,0:indmax]), 'bo', label="TEBD site {0}".format(i))
 	ax[i].plot(ts, np.absolute(np.sqrt(init['nbar']) * np.exp(init['nbar'] * np.expm1(-1j * ts * model['U']))), 'r-', linewidth=2)
 	ax[i].legend()
-	ax[i].set_yticks(np.linspace(0,1.5,num=2))
-	ax[i].set_yticklabels(np.linspace(0,1.5,num=2))
-	ax[i].set_ylim([-0.1, 1.1])
+	ax[i].set_yticks(np.linspace(0,1.5,num=4))
+	ax[i].set_yticklabels(np.linspace(0,1.5,num=4))
+	ax[i].set_ylim([-0.4, 1.4])
 ax[0].set_title(r"TEBD simulation: $L = {0}$, $d = {1}$, $\chi = {2}$".format(L,d,chi), fontsize=18)
 f.subplots_adjust(hspace=0)
 plt.setp([a.get_xticklabels() for a in f.axes[:-1]], visible=False)
@@ -106,9 +106,9 @@ f, ax = plt.subplots(L, sharex=True, sharey=True)
 for i in range(0, L):
 	ax[i].plot(ts, np.absolute(n_avg[i,0:indmax]), 'bo', label="TEBD site {0}".format(i))
 	ax[i].legend()
-	ax[i].set_yticks(np.linspace(0,2,num=5))
-	ax[i].set_yticklabels(np.linspace(0,2,num=5))
-	ax[i].set_ylim([-0.1, 2.1])
+	ax[i].set_yticks(np.linspace(0,3,num=4))
+	ax[i].set_yticklabels(np.linspace(0,3,num=4))
+	ax[i].set_ylim([-0.4, 3.4])
 ax[0].set_title(r"TEBD simulation: $L = {0}$, $d = {1}$, $\chi = {2}$".format(L,d,chi), fontsize=18)
 f.subplots_adjust(hspace=0)
 plt.setp([a.get_xticklabels() for a in f.axes[:-1]], visible=False)
