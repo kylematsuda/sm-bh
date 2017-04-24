@@ -1,20 +1,35 @@
+# Kyle Matsuda, Tanya Roussy, and Will Tobias
+#
+# Script for running our
+# implementation of the TEBD algorithm for the 
+# final project of Physics 7230.
+#
+# The script helpers.py contains helper and initialization functions
+#
+# Note: this is the cleaned-up version of the code;
+# partial implementations of two-site reduced density matrices,
+# imaginary time evolution, two-species evolution can be accessed
+# in older versions of the code on github.
+
 import numpy as np
 import math
-import helpers_new2
+import helpers
 import datetime
 from matplotlib import pyplot as plt
 
 # Simulation and model parameters
 model = {'J': 1.0, 'U': 0.0}
-# Note: set 'it' == True to find ground state, False to calculate real time evolution
-# If doing imaginary time evolution, we need to add in a chemical potential term to conserve number
-# mu is in units of U
-sim = {'d': 6, 'chi': 20, 'L': 3, 'delta': 0.1, 'N': 500, 'it': False, 'mu': 0.5}
+# d = local Hilbert space dimension
+# chi = entanglement cutoff for TEBD
+# L = number of sites
+# delta = timestep
+# N = iterations
+sim = {'d': 3, 'chi': 10, 'L': 3, 'delta': 0.01, 'N': 100}
 
 # Choose which expectation values to log:
 # Skip: how many iterations to skip between logging expectation values
-# Must have skip = 'N' - 1 to log 'aa'
-logs = {'rho': False, 'a': True, 'n': True, 'aa': True, 'skip': 0}
+# e.g., skip = 9 to record every 10th data point
+logs = {'rho': False, 'a': True, 'n': True, 'skip': 0}
 
 # Choose your initial state:
 # state_flag = 0 for Fock states, = 1 for coherent states
@@ -26,7 +41,7 @@ sweep_par = ['U', 'mu']
 # What range to sweep over?
 # Script will iterate through this array
 par1_range = [model['U']] # np.arange(2, 2.2, 0.2)
-par2_range = [sim['mu']] # np.arange(1, 0.2, 0.1)
+par2_range = [model['J']] # np.arange(1, 0.2, 0.1)
 sweep_range = [(x,y) for x in par1_range for y in par2_range]
 
 for i in range(0, len(sweep_range)):
@@ -49,18 +64,8 @@ for i in range(0, len(sweep_range)):
 	f.write("rho = {0}, a = {1}, n = {2}, skip = {3}\n".format(logs['rho'], logs['a'], logs['n'], logs['skip']))
 
 	# Run the simulation
-	simulation = helpers_new2.TEBD(model, sim, init, logs)
+	simulation = helpers.TEBD(model, sim, init, logs)
 	simulation.Run_Simulation()
-
-	spdm = simulation.aa
-	f.write("{0}\n".format(np.array2string(spdm)))
-
-	# # Get the data
-	# a_avg = simulation.a_avg
-	# # Average to find average superfluid order parameter
-	# a_gs = np.mean(np.absolute(a_avg[:,-1]))
-	# print a_gs
-	# f.write("order par = {0}\n".format(a_gs))
 
 	f.write("error = {0}".format(simulation.tau))
 	# Close file
@@ -68,9 +73,7 @@ for i in range(0, len(sweep_range)):
 
 	print sweep_range[i]
 
-# print spdm
-# print simulation.a_avg[:,-1]
-
+# Plots for <a>
 a_avg = simulation.a_avg
 # Plot stuff
 L = sim['L']; chi = sim['chi']; d = sim['d']; delta = sim['delta']; N = sim['N']
@@ -83,7 +86,7 @@ for i in range(0, L):
 	ax[i].legend()
 	ax[i].set_yticks(np.linspace(0,1.5,num=4))
 	ax[i].set_yticklabels(np.linspace(0,1.5,num=4))
-	ax[i].set_ylim([-0.4, 1.4])
+	ax[i].set_ylim([-0.4, 1.9])
 ax[0].set_title(r"TEBD simulation: $L = {0}$, $d = {1}$, $\chi = {2}$".format(L,d,chi), fontsize=18)
 f.subplots_adjust(hspace=0)
 plt.setp([a.get_xticklabels() for a in f.axes[:-1]], visible=False)
@@ -96,19 +99,23 @@ plt.xlabel(r"t ($\hbar/U$)", fontsize=16)
 plt.ylabel(r"$|\langle a(t) \rangle|$", fontsize=16)
 plt.savefig(filename + "_a.pdf", format="pdf")
 
+
+# Plots for <n>
 n_avg = simulation.n_avg
-print n_avg[:,0]
-print n_avg[:,-2]
-print n_avg[:,-1]
 # Plot stuff
 L = sim['L']; chi = sim['chi']; d = sim['d']; delta = sim['delta']; N = sim['N']
-f, ax = plt.subplots(L, sharex=True, sharey=True)
+f, ax = plt.subplots(L+1, sharex=True, sharey=False)
 for i in range(0, L):
 	ax[i].plot(ts, np.absolute(n_avg[i,0:indmax]), 'bo', label="TEBD site {0}".format(i))
 	ax[i].legend()
-	ax[i].set_yticks(np.linspace(0,3,num=4))
-	ax[i].set_yticklabels(np.linspace(0,3,num=4))
-	ax[i].set_ylim([-0.4, 3.4])
+	ax[i].set_yticks(np.linspace(0,2,num=3))
+	ax[i].set_yticklabels(np.linspace(0,2,num=3))
+	ax[i].set_ylim([-0.4, 2.4])
+ax[L].plot(ts, np.sum(np.absolute(n_avg[:,0:indmax]), 0), 'ro', label="total n")
+ax[L].legend()
+ax[L].set_yticks(np.linspace(init['nbar']-0.25,init['nbar']+0.25,num=3))
+ax[L].set_yticklabels(np.linspace(init['nbar']-0.25,init['nbar']+0.25,num=3))
+ax[L].set_ylim([init['nbar']-0.5, init['nbar']+0.5])
 ax[0].set_title(r"TEBD simulation: $L = {0}$, $d = {1}$, $\chi = {2}$".format(L,d,chi), fontsize=18)
 f.subplots_adjust(hspace=0)
 plt.setp([a.get_xticklabels() for a in f.axes[:-1]], visible=False)
@@ -117,7 +124,7 @@ f.add_subplot(111, frameon=False)
 # hide tick and tick label of the big axes
 plt.tick_params(labelcolor='none', top='off', bottom='off', left='off', right='off')
 
-plt.xlabel(r"t ($\hbar/U$)", fontsize=16)
+plt.xlabel(r"t ($\hbar/J$)", fontsize=16)
 plt.ylabel(r"$\langle n(t) \rangle$", fontsize=16)
 plt.savefig(filename + "_n.pdf", format="pdf")
 plt.show()
